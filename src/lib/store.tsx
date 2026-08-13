@@ -27,7 +27,9 @@ function readLedger(): LedgerState {
     if (!parsed?.profiles?.kaylie || !parsed?.profiles?.nefi) return emptyLedger()
     return {
       profiles: parsed.profiles,
-      entries: Array.isArray(parsed.entries) ? parsed.entries : [],
+      entries: Array.isArray(parsed.entries)
+        ? parsed.entries.map((e) => ({ ...e, cadence: e.cadence ?? 'monthly' }))
+        : [],
       events: Array.isArray(parsed.events) ? parsed.events : [],
     }
   } catch {
@@ -134,7 +136,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
         if (!parsed?.profiles?.kaylie) throw new Error('Not an Orbit ledger')
         setState({
           profiles: parsed.profiles,
-          entries: parsed.entries ?? [],
+          entries: (parsed.entries ?? []).map((e) => ({ ...e, cadence: e.cadence ?? 'monthly' })),
           events: parsed.events ?? [],
         })
       },

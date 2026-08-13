@@ -1,6 +1,7 @@
 import type { AdviceCard, LedgerState, MoneyEntry } from '../types.ts'
 import { monthsUntil, usd } from './money.ts'
 import { riskPosture, sumKind, weddingSavings } from './ledger.ts'
+import { monthlyAmount } from './money.ts'
 
 function monthsOfRunway(savings: number, spend: number): number {
   if (spend <= 0) return savings > 0 ? 99 : 0
@@ -191,8 +192,8 @@ export function buildAdvice(state: LedgerState, entries: MoneyEntry[]): AdviceCa
     })
   }
 
-  const kaylieInc = entries.filter((e) => e.owner === 'kaylie' && e.kind === 'income').reduce((n, e) => n + e.amount, 0)
-  const nefiInc = entries.filter((e) => e.owner === 'nefi' && e.kind === 'income').reduce((n, e) => n + e.amount, 0)
+  const kaylieInc = entries.filter((e) => e.owner === 'kaylie' && e.kind === 'income').reduce((n, e) => n + monthlyAmount(e), 0)
+  const nefiInc = entries.filter((e) => e.owner === 'nefi' && e.kind === 'income').reduce((n, e) => n + monthlyAmount(e), 0)
   if (income > 0 && (kaylieInc === 0 || nefiInc === 0)) {
     const missing = kaylieInc === 0 ? 'Kaylie' : 'Nefi'
     cards.push({

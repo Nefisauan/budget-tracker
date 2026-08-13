@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
-import type { FlowKind, MoneyEntry, Owner, Persona } from '../types.ts'
+import type { Cadence, FlowKind, MoneyEntry, Owner, Persona } from '../types.ts'
 import { CATEGORIES, KIND_COPY, sumKind, visibleEntries } from '../lib/ledger.ts'
-import { uid, usd } from '../lib/money.ts'
+import { CADENCES, cadenceLabel, monthlyAmount, uid, usd } from '../lib/money.ts'
 import { useLedger } from '../lib/store.tsx'
 import { Button, Chip, Field, fieldClass, FormGrid, Panel } from './ui.tsx'
 import { Pencil, Trash2 } from 'lucide-react'
@@ -20,8 +20,8 @@ export function FlowView({ persona, kind }: { persona: Persona; kind: FlowKind }
         <p className="text-[11px] tracking-[0.28em] text-gold uppercase">{copy.title}</p>
         <h2 className="mt-1 font-display text-4xl font-light text-mist">{copy.hint}</h2>
         <p className="mt-2 text-sm text-mute">
-          Monthly total in this orbit: <span className="text-gold">{usd(total)}</span>
-          {kind !== 'income' ? ` · ${usd(total * 12)} / year` : null}
+          Monthly run-rate in this orbit: <span className="text-gold">{usd(total)}</span>
+          {` · ${usd(total * 12)} / year`}
         </p>
       </div>
 
@@ -51,11 +51,14 @@ export function FlowView({ persona, kind }: { persona: Persona; kind: FlowKind }
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-mist">{row.label}</p>
                   <p className="text-xs text-mute">
-                    {row.category} · {row.owner}
+                    {usd(row.amount)} {cadenceLabel(row.cadence).toLowerCase()} · {row.category} · {row.owner}
                     {row.notes ? ` · ${row.notes}` : ''}
                   </p>
                 </div>
-                <p className="font-display text-lg text-gold">{usd(row.amount)}</p>
+                <div className="text-right">
+                  <p className="font-display text-lg text-gold">{usd(monthlyAmount(row))}</p>
+                  <p className="text-[10px] tracking-wide text-mute uppercase">per month</p>
+                </div>
                 <button type="button" className="text-mute hover:text-mist" onClick={() => setEditing(row)} aria-label="Edit">
                   <Pencil size={15} />
                 </button>
@@ -86,9 +89,12 @@ function EntryForm({
 }) {
   const [label, setLabel] = useState(initial?.label ?? '')
   const [amount, setAmount] = useState(initial ? String(initial.amount) : '')
+  const [cadence, setCadence] = useState<Cadence>(initial?.cadence ?? 'monthly')
   const [category, setCategory] = useState(initial?.category ?? CATEGORIES[kind][0])
   const [owner, setOwner] = useState<Owner>(initial?.owner ?? defaultOwner)
   const [notes, setNotes] = useState(initial?.notes ?? '')
+  const preview = Number(amount)
+  const monthly = Number.isFinite(preview) && preview >= 0 ? monthlyAmount({ amount: preview, cadence }) : 0
 
   function submit(e: FormEvent) {
     e.preventDefault()
@@ -101,6 +107,7 @@ function EntryForm({
       category,
       label: label.trim(),
       amount: n,
+      cadence,
       notes: notes.trim(),
       createdAt: initial?.createdAt ?? new Date().toISOString(),
     })
@@ -114,11 +121,28 @@ function EntryForm({
   return (
     <FormGrid onSubmit={submit}>
       <Field label="Label">
-        <input className={fieldClass()} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Rent, Roth, date night…" required />
+        <input
+          className={fieldClass()}
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          placeholder={kind === 'income' ? 'Day job, side hustle…' : 'Rent, Roth, date night…'}
+          required
+        />
       </Field>
-      <Field label="Monthly $">
+      <Field label={kind === 'income' ? 'How much' : 'Amount $'}>
         <input className={fieldClass()} type="number" min="0" step="1" value={amount} onChange={(e) => setAmount(e.target.value)} required />
       </Field>
+      <div className="sm:col-span-2">
+        <Field label="How often">
+          <div className="flex flex-wrap gap-2 pt-1">
+            {CADENCES.map((c) => (
+              <Chip key={c.id} active={cadence === c.id} onClick={() => setCadence(c.id)}>
+                {c.label}
+              </Chip>
+            ))}
+          </div>
+        </Field>
+      </div>
       <Field label="Category">
         <select className={fieldClass()} value={category} onChange={(e) => setCategory(e.target.value)}>
           {CATEGORIES[kind].map((c) => (
@@ -137,20 +161,28 @@ function EntryForm({
           ))}
         </div>
       </Field>
-      <div className="sm:col-span-2 lg:col-span-3">
+      <div className="sm:col-span-2 lg:col-span-2">
         <Field label="Notes">
           <input className={fieldClass()} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" />
         </Field>
       </div>
-      <div className="flex items-end gap-2">
-        <Button type="submit" tone="gold" className="w-full">
-          {initial ? 'Save change' : 'Add to ledger'}
-        </Button>
-        {initial ? (
-          <Button tone="ghost" onClick={onCancel}>
-            Cancel
-          </Button>
+      <div className="flex flex-col justify-end gap-2 sm:col-span-2 lg:col-span-2">
+        {amount ? (
+          <p className="text-xs text-mute">
+            {usd(preview)} {cadenceLabel(cadence).toLowerCase()} → <span className="text-gold">{usd(monthly)} / month</span>
+            {` · ${usd(monthly * 12)} / year`}
+          </p>
         ) : null}
+        <div className="flex gap-2">
+          <Button type="submit" tone="gold" className="w-full">
+            {initial ? 'Save change' : 'Add to ledger'}
+          </Button>
+          {initial ? (
+            <Button tone="ghost" onClick={onCancel}>
+              Cancel
+            </Button>
+          ) : null}
+        </div>
       </div>
     </FormGrid>
   )

@@ -1,6 +1,7 @@
 export type Persona = 'kaylie' | 'nefi' | 'together'
 export type Owner = 'kaylie' | 'nefi' | 'shared'
 export type FlowKind = 'income' | 'spend' | 'fun' | 'savings' | 'investments'
+export type Cadence = 'weekly' | 'biweekly' | 'semimonthly' | 'monthly' | 'yearly'
 export type EventKind = 'wedding' | 'travel' | 'home' | 'career' | 'family' | 'celebration' | 'other'
 export type View = 'dashboard' | 'income' | 'spend' | 'fun' | 'savings' | 'investments' | 'events' | 'advice'
 
@@ -17,6 +18,7 @@ export interface MoneyEntry {
   category: string
   label: string
   amount: number
+  cadence: Cadence
   notes: string
   createdAt: string
 }

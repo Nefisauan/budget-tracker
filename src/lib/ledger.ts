@@ -1,5 +1,5 @@
-import type { FlowKind, LedgerState, MoneyEntry, Owner, Persona } from '../types.ts'
-import { uid } from './money.ts'
+import type { Cadence, FlowKind, LedgerState, MoneyEntry, Owner, Persona } from '../types.ts'
+import { monthlyAmount, uid } from './money.ts'
 
 export const CATEGORIES: Record<FlowKind, string[]> = {
   income: ['Salary', 'Freelance', 'Bonus', 'Family', 'Other'],
@@ -10,7 +10,7 @@ export const CATEGORIES: Record<FlowKind, string[]> = {
 }
 
 export const KIND_COPY: Record<FlowKind, { title: string; hint: string; verb: string }> = {
-  income: { title: 'Income', hint: 'What lands each month', verb: 'Add income' },
+  income: { title: 'Income', hint: 'What you earn, and how often it lands', verb: 'Add income' },
   spend: { title: 'Needs & spending', hint: 'The life you already live', verb: 'Add spend' },
   fun: { title: 'Fun', hint: 'Joy is a line item', verb: 'Add fun' },
   savings: { title: 'Savings', hint: 'Cash with a job to do', verb: 'Add savings' },
@@ -45,6 +45,7 @@ export function demoLedger(base: LedgerState): LedgerState {
     category: string,
     label: string,
     amount: number,
+    cadence: Cadence = 'monthly',
   ): MoneyEntry => ({
     id: uid(),
     owner,
@@ -52,6 +53,7 @@ export function demoLedger(base: LedgerState): LedgerState {
     category,
     label,
     amount,
+    cadence,
     notes: '',
     createdAt: stamp,
   })
@@ -88,7 +90,7 @@ export function visibleEntries(state: LedgerState, persona: Persona): MoneyEntry
 }
 
 export function sumKind(entries: MoneyEntry[], kind: FlowKind): number {
-  return entries.filter((e) => e.kind === kind).reduce((n, e) => n + e.amount, 0)
+  return entries.filter((e) => e.kind === kind).reduce((n, e) => n + monthlyAmount(e), 0)
 }
 
 export function byCategory(entries: MoneyEntry[], kind?: FlowKind): { name: string; value: number }[] {
@@ -96,7 +98,7 @@ export function byCategory(entries: MoneyEntry[], kind?: FlowKind): { name: stri
   for (const e of entries) {
     if (kind && e.kind !== kind) continue
     if (e.kind === 'income') continue
-    map.set(e.category, (map.get(e.category) ?? 0) + e.amount)
+    map.set(e.category, (map.get(e.category) ?? 0) + monthlyAmount(e))
   }
   return [...map.entries()]
     .map(([name, value]) => ({ name, value }))
@@ -104,8 +106,8 @@ export function byCategory(entries: MoneyEntry[], kind?: FlowKind): { name: stri
 }
 
 export function splitByOwner(entries: MoneyEntry[]): { name: string; value: number; fill: string }[] {
-  const kaylie = entries.filter((e) => e.owner === 'kaylie').reduce((n, e) => n + (e.kind === 'income' ? e.amount : 0), 0)
-  const nefi = entries.filter((e) => e.owner === 'nefi').reduce((n, e) => n + (e.kind === 'income' ? e.amount : 0), 0)
+  const kaylie = entries.filter((e) => e.owner === 'kaylie' && e.kind === 'income').reduce((n, e) => n + monthlyAmount(e), 0)
+  const nefi = entries.filter((e) => e.owner === 'nefi' && e.kind === 'income').reduce((n, e) => n + monthlyAmount(e), 0)
   return [
     { name: 'Kaylie', value: kaylie, fill: '#f0b7c8' },
     { name: 'Nefi', value: nefi, fill: '#7ee7d6' },
@@ -138,7 +140,7 @@ export function allocationSlices(entries: MoneyEntry[]): {
 export function weddingSavings(entries: MoneyEntry[]): number {
   return entries
     .filter((e) => e.kind === 'savings' && e.category.toLowerCase().includes('wedding'))
-    .reduce((n, e) => n + e.amount, 0)
+    .reduce((n, e) => n + monthlyAmount(e), 0)
 }
 
 export function riskPosture(age: number): { label: string; equity: number; blurb: string } {
