@@ -2,6 +2,7 @@ import {
   Banknote,
   Briefcase,
   CalendarHeart,
+  ChartPie,
   Coins,
   Compass,
   CreditCard,
@@ -32,6 +33,7 @@ import { HustleView } from './HustleView.tsx'
 import { LoanView } from './LoanView.tsx'
 import { CardView } from './CardView.tsx'
 import { CashView } from './CashView.tsx'
+import { BudgetView } from './BudgetView.tsx'
 
 const NAV_GROUPS: { label: string; items: { id: View; label: string; icon: typeof Wallet }[] }[] = [
   {
@@ -46,6 +48,7 @@ const NAV_GROUPS: { label: string; items: { id: View; label: string; icon: typeo
   {
     label: 'Money',
     items: [
+      { id: 'budget', label: 'Budget plan', icon: ChartPie },
       { id: 'income', label: 'Income', icon: Wallet },
       { id: 'spend', label: 'Needs', icon: Landmark },
       { id: 'fun', label: 'Fun', icon: Sparkles },
@@ -281,6 +284,7 @@ export function Shell() {
 
 function ViewBody({ view, persona }: { view: View; persona: Persona }) {
   if (view === 'dashboard') return <Dashboard persona={persona} />
+  if (view === 'budget') return <BudgetView />
   if (view === 'cash') return <CashView persona={persona} />
   if (view === 'paycheck') return <PaycheckView persona={persona} />
   if (view === 'activity') return <ActivityView persona={persona} />

@@ -5,7 +5,8 @@ export type Cadence = 'weekly' | 'biweekly' | 'semimonthly' | 'monthly' | 'yearl
 export type EventKind = 'wedding' | 'travel' | 'home' | 'career' | 'family' | 'celebration' | 'other'
 export type HustleLineKind = 'revenue' | 'cost'
 export type LoanLineKind = 'payment' | 'charge'
-export type View = 'dashboard' | 'cash' | 'paycheck' | 'activity' | 'hustle' | 'loans' | 'cards' | 'income' | 'spend' | 'fun' | 'savings' | 'investments' | 'events' | 'advice'
+export type BudgetCategory = 'needs' | 'fun' | 'business' | 'extra' | 'investing' | 'savings'
+export type View = 'dashboard' | 'budget' | 'cash' | 'paycheck' | 'activity' | 'hustle' | 'loans' | 'cards' | 'income' | 'spend' | 'fun' | 'savings' | 'investments' | 'events' | 'advice'
 
 export interface ProfileMeta {
   name: string
@@ -131,6 +132,12 @@ export interface LifeEvent {
   notes: string
 }
 
+export interface BudgetPlan {
+  income: number
+  allocations: Record<BudgetCategory, number>
+  goals: Record<BudgetCategory, number>
+}
+
 export interface LedgerState {
   profiles: {
     kaylie: ProfileMeta
@@ -147,6 +154,7 @@ export interface LedgerState {
   cashAccounts: CashAccount[]
   cashAdjusts: CashAdjust[]
   events: LifeEvent[]
+  budgetPlan: BudgetPlan
 }
 
 export interface AdviceCard {

@@ -8,6 +8,7 @@ import {
 } from 'react'
 import type {
   Activity,
+  BudgetPlan,
   Hustle,
   HustleLine,
   Loan,
@@ -24,7 +25,7 @@ import type {
   View,
 } from '../types.ts'
 import { migrateCashAccounts } from './cash.ts'
-import { demoLedger, emptyLedger } from './ledger.ts'
+import { demoLedger, emptyBudgetPlan, emptyLedger } from './ledger.ts'
 
 function stamp<T extends { createdAt?: string }>(row: T): T {
   return { ...row, createdAt: row.createdAt ?? new Date().toISOString() }
@@ -39,6 +40,7 @@ function readLedger(): LedgerState {
     if (!raw) return emptyLedger()
     const parsed = JSON.parse(raw) as LedgerState
     if (!parsed?.profiles?.kaylie || !parsed?.profiles?.nefi) return emptyLedger()
+    const budgetPlan = emptyBudgetPlan()
     return {
       profiles: parsed.profiles,
       entries: Array.isArray(parsed.entries)
@@ -60,6 +62,11 @@ function readLedger(): LedgerState {
             e.kind === 'wedding' && e.estimatedCost === 25000 ? { ...e, estimatedCost: 20000 } : e,
           )
         : [],
+      budgetPlan: {
+        income: Number(parsed.budgetPlan?.income) || 0,
+        allocations: { ...budgetPlan.allocations, ...parsed.budgetPlan?.allocations },
+        goals: { ...budgetPlan.goals, ...parsed.budgetPlan?.goals },
+      },
     }
   } catch {
     return emptyLedger()
@@ -85,6 +92,7 @@ interface Store {
   setView: (view: View) => void
   setAge: (who: 'kaylie' | 'nefi', age: number) => void
   setTagline: (who: 'kaylie' | 'nefi', tagline: string) => void
+  setBudgetPlan: (plan: BudgetPlan) => void
   upsertEntry: (entry: MoneyEntry) => void
   removeEntry: (id: string) => void
   upsertEvent: (event: LifeEvent) => void
@@ -157,6 +165,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
           ...s,
           profiles: { ...s.profiles, [who]: { ...s.profiles[who], tagline } },
         })),
+      setBudgetPlan: (budgetPlan) => setState((s) => ({ ...s, budgetPlan })),
       upsertEntry: (entry) =>
         setState((s) => {
           const i = s.entries.findIndex((e) => e.id === entry.id)
@@ -260,6 +269,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
       importJson: (raw) => {
         const parsed = JSON.parse(raw) as LedgerState
         if (!parsed?.profiles?.kaylie) throw new Error('Not an Orbit ledger')
+        const budgetPlan = emptyBudgetPlan()
         setState({
           profiles: parsed.profiles,
           entries: (parsed.entries ?? []).map((e) => ({ ...e, cadence: e.cadence ?? 'monthly' })),
@@ -275,6 +285,11 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
           events: (parsed.events ?? []).map((e) =>
             e.kind === 'wedding' && e.estimatedCost === 25000 ? { ...e, estimatedCost: 20000 } : e,
           ),
+          budgetPlan: {
+            income: Number(parsed.budgetPlan?.income) || 0,
+            allocations: { ...budgetPlan.allocations, ...parsed.budgetPlan?.allocations },
+            goals: { ...budgetPlan.goals, ...parsed.budgetPlan?.goals },
+          },
         })
       },
     }),
