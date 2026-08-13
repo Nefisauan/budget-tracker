@@ -3,7 +3,7 @@ export type Owner = 'kaylie' | 'nefi' | 'shared'
 export type FlowKind = 'income' | 'spend' | 'fun' | 'savings' | 'investments'
 export type Cadence = 'weekly' | 'biweekly' | 'semimonthly' | 'monthly' | 'yearly'
 export type EventKind = 'wedding' | 'travel' | 'home' | 'career' | 'family' | 'celebration' | 'other'
-export type View = 'dashboard' | 'paycheck' | 'income' | 'spend' | 'fun' | 'savings' | 'investments' | 'events' | 'advice'
+export type View = 'dashboard' | 'paycheck' | 'activity' | 'income' | 'spend' | 'fun' | 'savings' | 'investments' | 'events' | 'advice'
 
 export interface ProfileMeta {
   name: string
@@ -23,6 +23,17 @@ export interface MoneyEntry {
   createdAt: string
 }
 
+export interface Activity {
+  id: string
+  date: string
+  owner: Owner
+  kind: FlowKind
+  category: string
+  label: string
+  amount: number
+  notes: string
+}
+
 export interface LifeEvent {
   id: string
   title: string
@@ -38,6 +49,7 @@ export interface LedgerState {
     nefi: ProfileMeta
   }
   entries: MoneyEntry[]
+  activity: Activity[]
   events: LifeEvent[]
 }
 

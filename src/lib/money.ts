@@ -52,6 +52,41 @@ export function monthsUntil(iso: string): number {
   return delta / (1000 * 60 * 60 * 24 * 30.437)
 }
 
+export function isoDate(d = new Date()): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+export function parseLocal(iso: string): Date {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y, (m ?? 1) - 1, d ?? 1)
+}
+
+export function shiftDays(iso: string, days: number): string {
+  const d = parseLocal(iso)
+  d.setDate(d.getDate() + days)
+  return isoDate(d)
+}
+
+export function weekStart(iso: string): string {
+  const d = parseLocal(iso)
+  const day = d.getDay()
+  const back = day === 0 ? 6 : day - 1
+  d.setDate(d.getDate() - back)
+  return isoDate(d)
+}
+
+export function weekLabel(start: string, today = isoDate()): string {
+  const here = weekStart(today)
+  const weeks = Math.round((parseLocal(here).getTime() - parseLocal(start).getTime()) / (7 * 86400000))
+  if (weeks === 0) return 'This week'
+  if (weeks === 1) return 'Last week'
+  if (weeks > 1 && weeks < 8) return `${weeks} weeks ago`
+  return prettyDate(start)
+}
+
 export function prettyDate(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso

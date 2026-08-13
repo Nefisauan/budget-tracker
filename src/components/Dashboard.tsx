@@ -1,10 +1,11 @@
 import { lazy, Suspense } from 'react'
 import type { Persona } from '../types.ts'
+import { groupWeeks, sumActivity, visibleActivity, weekChart } from '../lib/activity.ts'
 import { allocationSlices, byCategory, splitByOwner, sumKind, visibleEntries, weddingSavings } from '../lib/ledger.ts'
 import { buildAdvice } from '../lib/recommendations.ts'
 import { monthsUntil, pct, prettyDate, usd } from '../lib/money.ts'
 import { useLedger } from '../lib/store.tsx'
-import { CategoryBars, OwnerBars, SplitPie } from './Charts.tsx'
+import { CategoryBars, OwnerBars, SplitPie, WeekBars } from './Charts.tsx'
 import { Metric, Panel } from './ui.tsx'
 
 const Donut3D = lazy(async () => {
@@ -31,6 +32,10 @@ export function Dashboard({ persona }: { persona: Persona }) {
   const wedding = state.events.find((e) => e.kind === 'wedding')
   const nextEvent = [...state.events].sort((a, b) => a.date.localeCompare(b.date))[0]
   const fund = weddingSavings(entries)
+  const activity = visibleActivity(state, persona)
+  const investedAll = sumActivity(activity, 'investments')
+  const savedAll = sumActivity(activity, 'savings')
+  const recentWeek = groupWeeks(activity)[0]
 
   const greeting =
     persona === 'together'
@@ -85,6 +90,25 @@ export function Dashboard({ persona }: { persona: Persona }) {
           hint={surplus >= 0 ? 'Ready to assign or invest' : 'Over the line — trim something'}
         />
       </div>
+
+      <Panel>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-[11px] tracking-[0.2em] text-mute uppercase">History</p>
+            <h3 className="font-display text-2xl text-mist">Week by week, it adds up</h3>
+            <p className="mt-1 text-sm text-mute">
+              Invested all time {usd(investedAll)} · saved {usd(savedAll)}
+              {recentWeek ? ` · ${recentWeek.label}: ${usd(recentWeek.investments)} invested` : ''}
+            </p>
+          </div>
+          <button type="button" onClick={() => setView('activity')} className="text-sm text-gold">
+            Open activity →
+          </button>
+        </div>
+        <div className="mt-4">
+          <WeekBars data={weekChart(activity)} />
+        </div>
+      </Panel>
 
       <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <Panel className="min-h-[360px] overflow-hidden p-0">

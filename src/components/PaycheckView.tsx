@@ -1,17 +1,19 @@
 import { useState } from 'react'
 import type { Owner, Persona } from '../types.ts'
 import { visibleEntries } from '../lib/ledger.ts'
+import { sliceToActivity } from '../lib/activity.ts'
 import { recommendPaycheckSplit } from '../lib/paycheck.ts'
-import { pct, usd } from '../lib/money.ts'
+import { isoDate, pct, uid, usd } from '../lib/money.ts'
 import { useLedger } from '../lib/store.tsx'
 import { SplitPie } from './Charts.tsx'
 import { Button, Chip, Field, fieldClass, Panel } from './ui.tsx'
 
 export function PaycheckView({ persona }: { persona: Persona }) {
-  const { state } = useLedger()
+  const { state, addActivities, setView } = useLedger()
   const defaultOwner: Owner = persona === 'together' ? 'kaylie' : persona
   const [amount, setAmount] = useState('')
   const [owner, setOwner] = useState<Owner>(defaultOwner)
+  const [saved, setSaved] = useState(false)
   const check = Number(amount)
   const ready = Number.isFinite(check) && check > 0
   const plan = ready ? recommendPaycheckSplit(check, owner, state, visibleEntries(state, 'together')) : null
@@ -35,7 +37,10 @@ export function PaycheckView({ persona }: { persona: Persona }) {
               min="1"
               step="1"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => {
+                setAmount(e.target.value)
+                setSaved(false)
+              }}
               placeholder="2400"
             />
           </Field>
@@ -89,21 +94,53 @@ export function PaycheckView({ persona }: { persona: Persona }) {
             ))}
           </div>
 
-          {plan.notes.length > 0 ? (
-            <Panel>
-              <p className="text-[11px] tracking-[0.2em] text-mute uppercase">Why this split</p>
-              <ul className="mt-3 space-y-2 text-sm text-mute">
-                {plan.notes.map((n) => (
-                  <li key={n}>· {n}</li>
-                ))}
-              </ul>
-              <div className="mt-5 flex flex-wrap gap-2">
-                <Button tone="ghost" onClick={() => navigator.clipboard.writeText(copyPlan(plan.headline, plan.slices))}>
-                  Copy the split
+          <Panel>
+            {plan.notes.length > 0 ? (
+              <>
+                <p className="text-[11px] tracking-[0.2em] text-mute uppercase">Why this split</p>
+                <ul className="mt-3 space-y-2 text-sm text-mute">
+                  {plan.notes.map((n) => (
+                    <li key={n}>· {n}</li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Button
+                onClick={() => {
+                  const date = isoDate()
+                  const checkAmt = Math.round(check)
+                  addActivities([
+                    {
+                      id: uid(),
+                      date,
+                      owner,
+                      kind: 'income',
+                      category: 'Salary',
+                      label: 'Paycheck',
+                      amount: checkAmt,
+                      notes: 'This check',
+                    },
+                    ...plan.slices.flatMap((s) => {
+                      const row = sliceToActivity(date, owner, s.key, s.label, s.amount)
+                      return row ? [{ id: uid(), ...row }] : []
+                    }),
+                  ])
+                  setSaved(true)
+                }}
+              >
+                {saved ? 'Saved to activity' : 'Save this split to history'}
+              </Button>
+              <Button tone="ghost" onClick={() => navigator.clipboard.writeText(copyPlan(plan.headline, plan.slices))}>
+                Copy the split
+              </Button>
+              {saved ? (
+                <Button tone="ghost" onClick={() => setView('activity')}>
+                  See the log →
                 </Button>
-              </div>
-            </Panel>
-          ) : null}
+              ) : null}
+            </div>
+          </Panel>
         </>
       ) : null}
     </div>

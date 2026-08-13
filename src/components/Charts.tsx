@@ -87,6 +87,31 @@ export function OwnerBars({
   )
 }
 
+export function WeekBars({
+  data,
+}: {
+  data: { week: string; investments: number; savings: number; income: number }[]
+}) {
+  const has = data.some((d) => d.investments + d.savings + d.income > 0)
+  if (!has) {
+    return <p className="py-8 text-center text-sm text-mute">Log a week of activity and the history will stack here.</p>
+  }
+  return (
+    <div className="h-[240px]">
+      <ResponsiveContainer>
+        <BarChart data={data}>
+          <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
+          <XAxis dataKey="week" stroke="#8b8698" tickLine={false} axisLine={false} />
+          <YAxis stroke="#8b8698" tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}`} />
+          <Tooltip contentStyle={tooltipStyle} formatter={(v) => usd(Number(v ?? 0))} />
+          <Bar dataKey="investments" name="Invested" stackId="a" fill="#8b9cff" radius={[0, 0, 0, 0]} />
+          <Bar dataKey="savings" name="Saved" stackId="a" fill="#7ee7d6" radius={[10, 10, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
 export function CategoryBars({
   data,
 }: {

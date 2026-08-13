@@ -1,5 +1,5 @@
-import type { Cadence, FlowKind, LedgerState, MoneyEntry, Owner, Persona } from '../types.ts'
-import { monthlyAmount, uid } from './money.ts'
+import type { Activity, Cadence, FlowKind, LedgerState, MoneyEntry, Owner, Persona } from '../types.ts'
+import { isoDate, monthlyAmount, shiftDays, uid } from './money.ts'
 
 export const CATEGORIES: Record<FlowKind, string[]> = {
   income: ['Salary', 'Freelance', 'Bonus', 'Family', 'Other'],
@@ -24,6 +24,7 @@ export function emptyLedger(): LedgerState {
       nefi: { name: 'Nefi', age: 22, tagline: 'Teal orbit' },
     },
     entries: [],
+    activity: [],
     events: [
       {
         id: uid(),
@@ -58,6 +59,25 @@ export function demoLedger(base: LedgerState): LedgerState {
     createdAt: stamp,
   })
 
+  const today = isoDate()
+  const act = (
+    daysAgo: number,
+    owner: Owner,
+    kind: FlowKind,
+    category: string,
+    label: string,
+    amount: number,
+  ): Activity => ({
+    id: uid(),
+    date: shiftDays(today, -daysAgo),
+    owner,
+    kind,
+    category,
+    label,
+    amount,
+    notes: '',
+  })
+
   return {
     ...base,
     entries: [
@@ -75,6 +95,20 @@ export function demoLedger(base: LedgerState): LedgerState {
       row('kaylie', 'investments', 'Retirement', 'Kaylie Roth / 401k', 350),
       row('nefi', 'investments', 'Retirement', 'Nefi Roth / 401k', 400),
       row('shared', 'investments', 'Brokerage', 'Joint index funds', 250),
+    ],
+    activity: [
+      act(21, 'kaylie', 'investments', 'Retirement', 'Kaylie Roth', 200),
+      act(21, 'nefi', 'investments', 'Retirement', 'Nefi Roth', 250),
+      act(21, 'shared', 'savings', 'Wedding', 'Wedding HYSA', 400),
+      act(14, 'kaylie', 'investments', 'Retirement', 'Kaylie Roth', 200),
+      act(14, 'nefi', 'investments', 'Retirement', 'Nefi Roth', 250),
+      act(14, 'shared', 'savings', 'Wedding', 'Wedding HYSA', 450),
+      act(7, 'kaylie', 'investments', 'Retirement', 'Kaylie Roth', 220),
+      act(7, 'nefi', 'investments', 'Retirement', 'Nefi Roth', 250),
+      act(7, 'shared', 'savings', 'Emergency', 'Emergency fund', 150),
+      act(1, 'kaylie', 'investments', 'Retirement', 'Kaylie Roth', 200),
+      act(1, 'nefi', 'investments', 'Retirement', 'Nefi Roth', 280),
+      act(1, 'shared', 'savings', 'Wedding', 'Wedding HYSA', 500),
     ],
   }
 }
