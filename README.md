@@ -28,8 +28,12 @@ npm install
 npm run dev
 ```
 
-## Deploy
+## Deploy (Vercel)
 
-GitHub Pages builds from `main` via `.github/workflows/deploy.yml`. In the repo settings, set Pages to **GitHub Actions**.
+Pushes to `main` deploy automatically once the GitHub repo is imported in Vercel.
 
-[Live site](https://nefisauan.github.io/budget-tracker/)
+- Framework: Vite
+- Build: `npm run build`
+- Output: `dist`
+
+Import: [vercel.com/new](https://vercel.com/new) → GitHub → `Nefisauan/budget-tracker`.
