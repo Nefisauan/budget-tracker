@@ -3,7 +3,7 @@ export type Owner = 'kaylie' | 'nefi' | 'shared'
 export type FlowKind = 'income' | 'spend' | 'fun' | 'savings' | 'investments'
 export type Cadence = 'weekly' | 'biweekly' | 'semimonthly' | 'monthly' | 'yearly'
 export type EventKind = 'wedding' | 'travel' | 'home' | 'career' | 'family' | 'celebration' | 'other'
-export type View = 'dashboard' | 'income' | 'spend' | 'fun' | 'savings' | 'investments' | 'events' | 'advice'
+export type View = 'dashboard' | 'paycheck' | 'income' | 'spend' | 'fun' | 'savings' | 'investments' | 'events' | 'advice'
 
 export interface ProfileMeta {
   name: string

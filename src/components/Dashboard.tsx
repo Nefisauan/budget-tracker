@@ -49,15 +49,24 @@ export function Dashboard({ persona }: { persona: Persona }) {
             Numbers persist as you add them. Counsel shifts with your ages and whatever is coming — wedding, home, or otherwise.
           </p>
         </div>
-        {income === 0 ? (
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => setView('income')}
+            onClick={() => setView('paycheck')}
             className="rounded-full bg-gold px-4 py-2 text-sm text-ink"
           >
-            Add what you make
+            I just got paid
           </button>
-        ) : null}
+          {income === 0 ? (
+            <button
+              type="button"
+              onClick={() => setView('income')}
+              className="rounded-full border border-white/15 px-4 py-2 text-sm text-mist"
+            >
+              Add recurring pay
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
