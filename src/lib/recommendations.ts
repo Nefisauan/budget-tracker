@@ -2,6 +2,7 @@ import type { AdviceCard, LedgerState, MoneyEntry } from '../types.ts'
 import { monthsUntil, usd } from './money.ts'
 import { hustleTotals, visibleHustleLines } from './hustle.ts'
 import { cardSummary, cardTotals, linesForCard, visibleCards } from './card.ts'
+import { cashOnHand } from './cash.ts'
 import { debtSummary, linesForLoan, loanTotals, visibleLoans } from './loan.ts'
 import { riskPosture, sumKind, weddingSavings } from './ledger.ts'
 import { monthlyAmount } from './money.ts'
@@ -35,6 +36,27 @@ export function buildAdvice(state: LedgerState, entries: MoneyEntry[]): AdviceCa
   const wedding = upcoming.find((e) => e.kind === 'wedding')
   const monthsToWedding = wedding ? monthsUntil(wedding.date) : null
   const nearCashEvents = upcoming.filter((e) => monthsUntil(e.date) > 0 && monthsUntil(e.date) < 24)
+
+  const bank = cashOnHand(state, 'together')
+  if ((state.cashAccounts ?? []).length === 0) {
+    cards.push({
+      id: 'cash-start',
+      priority: 'now',
+      title: 'Say how much is in the bank right now',
+      body: 'Add checking (or cash) with the balance you see today. After that, every paycheck, spend, hustle line, and loan or card payment moves that number — nothing else rewrites it.',
+      why: 'A live account total is only honest if it starts from what is actually there.',
+      action: 'Open In the bank and set the starting balance.',
+    })
+  } else if (bank < 0) {
+    cards.push({
+      id: 'cash-overdrawn',
+      priority: 'now',
+      title: `Checking is at ${usd(bank)}`,
+      body: 'Logs have the account below zero. Either a spend or payment was logged that did not leave this account, or money came in that was not logged. Fix the history or add a correction.',
+      why: 'An overdrawn running total means the next bill is guessing.',
+      action: 'Open In the bank and check the movement list.',
+    })
+  }
 
   if (income <= 0) {
     cards.push({

@@ -13,6 +13,7 @@ import {
   LogOut,
   PiggyBank,
   Sparkles,
+  University,
   Upload,
   Wallet,
 } from 'lucide-react'
@@ -29,9 +30,11 @@ import { ActivityView } from './ActivityView.tsx'
 import { HustleView } from './HustleView.tsx'
 import { LoanView } from './LoanView.tsx'
 import { CardView } from './CardView.tsx'
+import { CashView } from './CashView.tsx'
 
 const NAV: { id: View; label: string; icon: typeof Wallet }[] = [
   { id: 'dashboard', label: 'Observatory', icon: LayoutDashboard },
+  { id: 'cash', label: 'In the bank', icon: University },
   { id: 'paycheck', label: 'This check', icon: Banknote },
   { id: 'activity', label: 'Activity', icon: History },
   { id: 'hustle', label: 'Hustle', icon: Briefcase },
@@ -179,6 +182,7 @@ export function Shell() {
 
 function ViewBody({ view, persona }: { view: View; persona: Persona }) {
   if (view === 'dashboard') return <Dashboard persona={persona} />
+  if (view === 'cash') return <CashView persona={persona} />
   if (view === 'paycheck') return <PaycheckView persona={persona} />
   if (view === 'activity') return <ActivityView persona={persona} />
   if (view === 'hustle') return <HustleView persona={persona} />

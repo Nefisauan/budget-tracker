@@ -13,6 +13,7 @@ import {
 import { hustleTotals, visibleHustleLines } from '../lib/hustle.ts'
 import { debtSummary } from '../lib/loan.ts'
 import { cardSummary } from '../lib/card.ts'
+import { cashOnHand, liveBalance, visibleCash } from '../lib/cash.ts'
 import { visibleEntries } from '../lib/ledger.ts'
 import { buildAdvice } from '../lib/recommendations.ts'
 import { monthsUntil, prettyDate, usd } from '../lib/money.ts'
@@ -50,6 +51,8 @@ export function Dashboard({ persona }: { persona: Persona }) {
   const hustle = hustleTotals(visibleHustleLines(state, persona))
   const debt = debtSummary(state, persona)
   const cards = cardSummary(state, persona)
+  const bank = cashOnHand(state, persona)
+  const cashAccounts = visibleCash(state, persona)
 
   const greeting =
     persona === 'together'
@@ -87,6 +90,25 @@ export function Dashboard({ persona }: { persona: Persona }) {
           ) : null}
         </div>
       </div>
+
+      <Panel>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-[11px] tracking-[0.2em] text-mute uppercase">In the bank right now</p>
+            <h3 className={`font-display text-4xl ${bank < 0 ? 'text-rose' : 'text-teal'}`}>{usd(bank)}</h3>
+            <p className="mt-1 text-sm text-mute">
+              {cashAccounts.length === 0
+                ? 'Set what’s in checking — then it moves every time you log pay, spend, or a payment.'
+                : cashAccounts
+                    .map((a) => `${a.name} ${usd(liveBalance(state, a))}`)
+                    .join(' · ')}
+            </p>
+          </div>
+          <button type="button" onClick={() => setView('cash')} className="text-sm text-gold">
+            {cashAccounts.length === 0 ? 'Set my balance →' : 'Open accounts →'}
+          </button>
+        </div>
+      </Panel>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Metric kicker="Logged income" value={usd(income)} hint={`${usd(incomeMonth)} this month · all time`} />

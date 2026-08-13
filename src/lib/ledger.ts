@@ -31,6 +31,8 @@ export function emptyLedger(): LedgerState {
     loanLines: [],
     cards: [],
     cardLines: [],
+    cashAccounts: [],
+    cashAdjusts: [],
     events: [
       {
         id: uid(),
