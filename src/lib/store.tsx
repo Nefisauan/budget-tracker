@@ -25,6 +25,11 @@ import type {
   View,
 } from '../types.ts'
 import { migrateCashAccounts } from './cash.ts'
+import {
+  loadCloudLedger,
+  saveCloudLedger,
+  type CloudCredentials,
+} from './cloud.ts'
 import { demoLedger, emptyBudgetPlan, emptyLedger } from './ledger.ts'
 
 function stamp<T extends { createdAt?: string }>(row: T): T {
@@ -33,6 +38,7 @@ function stamp<T extends { createdAt?: string }>(row: T): T {
 
 const LEDGER_KEY = 'orbit-ledger-v2'
 const SESSION_KEY = 'orbit-session-v2'
+const CLOUD_KEY = 'orbit-cloud-profile-v1'
 
 function migrateBudgetPlan(raw?: BudgetPlan): BudgetPlan {
   const fallback = emptyBudgetPlan()
@@ -52,13 +58,9 @@ function migrateBudgetPlan(raw?: BudgetPlan): BudgetPlan {
   return { goals: { ...fallback.goals, ...legacy.goals } }
 }
 
-function readLedger(): LedgerState {
-  try {
-    const raw = localStorage.getItem(LEDGER_KEY)
-    if (!raw) return emptyLedger()
-    const parsed = JSON.parse(raw) as LedgerState
-    if (!parsed?.profiles?.kaylie || !parsed?.profiles?.nefi) return emptyLedger()
-    return {
+function normalizeLedger(parsed: LedgerState): LedgerState {
+  if (!parsed?.profiles?.kaylie || !parsed?.profiles?.nefi) return emptyLedger()
+  return {
       profiles: parsed.profiles,
       entries: Array.isArray(parsed.entries)
         ? parsed.entries.map((e) => ({ ...e, cadence: e.cadence ?? 'monthly' }))
@@ -80,9 +82,25 @@ function readLedger(): LedgerState {
           )
         : [],
       budgetPlan: migrateBudgetPlan(parsed.budgetPlan),
-    }
+  }
+}
+
+function readLedger(): LedgerState {
+  try {
+    const raw = localStorage.getItem(LEDGER_KEY)
+    if (!raw) return emptyLedger()
+    return normalizeLedger(JSON.parse(raw) as LedgerState)
   } catch {
     return emptyLedger()
+  }
+}
+
+function readCloudCredentials(): CloudCredentials | null {
+  try {
+    const raw = localStorage.getItem(CLOUD_KEY)
+    return raw ? (JSON.parse(raw) as CloudCredentials) : null
+  } catch {
+    return null
   }
 }
 
@@ -100,6 +118,11 @@ interface Store {
   ready: boolean
   state: LedgerState
   session: Session | null
+  cloudProfile: string | null
+  cloudStatus: 'local' | 'loading' | 'saving' | 'saved' | 'error'
+  cloudError: string
+  connectCloud: (name: string, pin: string) => Promise<void>
+  disconnectCloud: () => void
   enter: (persona: Persona) => void
   exit: () => void
   setView: (view: View) => void
@@ -142,17 +165,72 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false)
   const [state, setState] = useState<LedgerState>(emptyLedger)
   const [session, setSession] = useState<Session | null>(null)
+  const [cloudCredentials, setCloudCredentials] = useState<CloudCredentials | null>(null)
+  const [cloudLoaded, setCloudLoaded] = useState(false)
+  const [cloudStatus, setCloudStatus] = useState<Store['cloudStatus']>('local')
+  const [cloudError, setCloudError] = useState('')
 
   useEffect(() => {
-    setState(readLedger())
+    let active = true
+    const local = readLedger()
+    const credentials = readCloudCredentials()
     setSession(readSession())
-    setReady(true)
+    if (!credentials) {
+      setState(local)
+      setReady(true)
+      return () => {
+        active = false
+      }
+    }
+    setCloudCredentials(credentials)
+    setCloudStatus('loading')
+    void loadCloudLedger(credentials)
+      .then(async (remote) => {
+        if (!active) return
+        if (remote) setState(normalizeLedger(remote))
+        else {
+          setState(local)
+          await saveCloudLedger(credentials, local)
+        }
+        if (!active) return
+        setCloudLoaded(true)
+        setCloudStatus('saved')
+      })
+      .catch((error: unknown) => {
+        if (!active) return
+        setState(local)
+        setCloudStatus('error')
+        setCloudError(error instanceof Error ? error.message : 'Could not load cloud profile.')
+      })
+      .finally(() => {
+        if (active) setReady(true)
+      })
+    return () => {
+      active = false
+    }
   }, [])
 
   useEffect(() => {
     if (!ready) return
     localStorage.setItem(LEDGER_KEY, JSON.stringify(state))
   }, [state, ready])
+
+  useEffect(() => {
+    if (!ready || !cloudLoaded || !cloudCredentials) return
+    setCloudStatus('saving')
+    const timer = window.setTimeout(() => {
+      void saveCloudLedger(cloudCredentials, state)
+        .then(() => {
+          setCloudStatus('saved')
+          setCloudError('')
+        })
+        .catch((error: unknown) => {
+          setCloudStatus('error')
+          setCloudError(error instanceof Error ? error.message : 'Could not save to the cloud.')
+        })
+    }, 700)
+    return () => window.clearTimeout(timer)
+  }, [state, ready, cloudLoaded, cloudCredentials])
 
   useEffect(() => {
     if (!ready) return
@@ -165,6 +243,37 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
       ready,
       state,
       session,
+      cloudProfile: cloudCredentials?.name ?? null,
+      cloudStatus,
+      cloudError,
+      connectCloud: async (name, pin) => {
+        const credentials = { name: name.trim().toLowerCase(), pin: pin.trim() }
+        if (!credentials.name) throw new Error('Enter a profile name.')
+        if (credentials.pin.length < 4) throw new Error('Use a PIN with at least 4 digits.')
+        setCloudStatus('loading')
+        setCloudError('')
+        try {
+          const remote = await loadCloudLedger(credentials)
+          if (remote) setState(normalizeLedger(remote))
+          else await saveCloudLedger(credentials, state)
+          localStorage.setItem(CLOUD_KEY, JSON.stringify(credentials))
+          setCloudCredentials(credentials)
+          setCloudLoaded(true)
+          setCloudStatus('saved')
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Could not open cloud profile.'
+          setCloudStatus('error')
+          setCloudError(message)
+          throw new Error(message)
+        }
+      },
+      disconnectCloud: () => {
+        localStorage.removeItem(CLOUD_KEY)
+        setCloudCredentials(null)
+        setCloudLoaded(false)
+        setCloudStatus('local')
+        setCloudError('')
+      },
       enter: (persona) => setSession({ persona, view: 'dashboard' }),
       exit: () => setSession(null),
       setView: (view) => setSession((s) => (s ? { ...s, view } : s)),
@@ -301,7 +410,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
         })
       },
     }),
-    [ready, state, session],
+    [ready, state, session, cloudCredentials, cloudStatus, cloudError],
   )
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>

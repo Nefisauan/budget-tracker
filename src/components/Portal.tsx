@@ -1,6 +1,8 @@
 import { motion } from 'framer-motion'
-import { lazy, Suspense } from 'react'
+import { Cloud, CloudOff } from 'lucide-react'
+import { lazy, Suspense, useState } from 'react'
 import { useLedger } from '../lib/store.tsx'
+import { Button, Field, fieldClass } from './ui.tsx'
 
 const PortalCanvas = lazy(async () => {
   const m = await import('./Scene.tsx')
@@ -8,8 +10,19 @@ const PortalCanvas = lazy(async () => {
 })
 
 export function Portal() {
-  const { enter, state } = useLedger()
+  const {
+    enter,
+    state,
+    cloudProfile,
+    cloudStatus,
+    cloudError,
+    connectCloud,
+    disconnectCloud,
+  } = useLedger()
   const { kaylie, nefi } = state.profiles
+  const [profileName, setProfileName] = useState('')
+  const [pin, setPin] = useState('')
+  const [formError, setFormError] = useState('')
 
   return (
     <div className="aurora relative min-h-dvh overflow-hidden">
@@ -30,6 +43,74 @@ export function Portal() {
         </header>
 
         <div className="hairline mt-10" />
+
+        <div className="glass mt-8 rounded-3xl p-5">
+          {cloudProfile ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="grid h-10 w-10 place-items-center rounded-full bg-teal/10 text-teal">
+                  <Cloud size={18} />
+                </span>
+                <div>
+                  <p className="text-[10px] tracking-[0.2em] text-mute uppercase">Cloud profile</p>
+                  <p className="text-sm text-mist">
+                    {cloudProfile} · {cloudStatus === 'saving' ? 'saving…' : cloudStatus === 'error' ? 'save error' : 'synced'}
+                  </p>
+                </div>
+              </div>
+              <button type="button" onClick={disconnectCloud} className="text-xs text-mute hover:text-rose">
+                Disconnect this device
+              </button>
+              {cloudError ? <p className="w-full text-xs text-rose">{cloudError}</p> : null}
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center gap-3">
+                <span className="grid h-10 w-10 place-items-center rounded-full bg-gold/10 text-gold">
+                  <CloudOff size={18} />
+                </span>
+                <div>
+                  <p className="text-[10px] tracking-[0.2em] text-mute uppercase">Save across devices</p>
+                  <p className="text-sm text-mist">Use the same profile name and PIN on your phone and computer.</p>
+                </div>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_180px_auto] sm:items-end">
+                <Field label="Shared profile name">
+                  <input
+                    className={fieldClass()}
+                    value={profileName}
+                    onChange={(event) => setProfileName(event.target.value)}
+                    placeholder="kaylie-and-nefi"
+                    autoComplete="username"
+                  />
+                </Field>
+                <Field label="PIN">
+                  <input
+                    className={fieldClass()}
+                    type="password"
+                    inputMode="numeric"
+                    value={pin}
+                    onChange={(event) => setPin(event.target.value)}
+                    placeholder="4+ digits"
+                    autoComplete="current-password"
+                  />
+                </Field>
+                <Button
+                  onClick={() => {
+                    setFormError('')
+                    void connectCloud(profileName, pin).catch((error: unknown) => {
+                      setFormError(error instanceof Error ? error.message : 'Could not open cloud profile.')
+                    })
+                  }}
+                  className={cloudStatus === 'loading' ? 'pointer-events-none opacity-50' : ''}
+                >
+                  {cloudStatus === 'loading' ? 'Opening…' : 'Open or create'}
+                </Button>
+              </div>
+              {formError || cloudError ? <p className="mt-3 text-xs text-rose">{formError || cloudError}</p> : null}
+            </div>
+          )}
+        </div>
 
         <motion.div
           initial={{ opacity: 0, y: 18 }}
@@ -61,7 +142,9 @@ export function Portal() {
           >
             Enter together
           </button>
-          <p className="text-xs text-mute">Progress saves on this device. Export a backup anytime.</p>
+          <p className="text-xs text-mute">
+            {cloudProfile ? `Synced as ${cloudProfile}. Export a backup anytime.` : 'Progress saves on this device until you connect a cloud profile.'}
+          </p>
         </div>
       </div>
     </div>
