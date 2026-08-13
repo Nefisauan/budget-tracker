@@ -38,7 +38,7 @@ function Group({
 }: {
   title: string
   items: ReturnType<typeof buildAdvice>
-  onJump: (view: 'income' | 'events' | 'savings' | 'investments' | 'fun' | 'hustle' | 'loans') => void
+  onJump: (view: 'income' | 'events' | 'savings' | 'investments' | 'fun' | 'hustle' | 'loans' | 'cards') => void
 }) {
   if (items.length === 0) return null
   return (
@@ -64,6 +64,7 @@ function Group({
             <Jump label="Fun" onClick={() => onJump('fun')} />
             <Jump label="Hustle" onClick={() => onJump('hustle')} />
             <Jump label="Loans" onClick={() => onJump('loans')} />
+            <Jump label="Cards" onClick={() => onJump('cards')} />
             <Jump label="Life" onClick={() => onJump('events')} />
           </div>
         </Panel>

@@ -12,6 +12,8 @@ import type {
   HustleLine,
   Loan,
   LoanLine,
+  CardAccount,
+  CardLine,
   LedgerState,
   LifeEvent,
   MoneyEntry,
@@ -42,6 +44,8 @@ function readLedger(): LedgerState {
       hustleLines: Array.isArray(parsed.hustleLines) ? parsed.hustleLines : [],
       loans: Array.isArray(parsed.loans) ? parsed.loans : [],
       loanLines: Array.isArray(parsed.loanLines) ? parsed.loanLines : [],
+      cards: Array.isArray(parsed.cards) ? parsed.cards : [],
+      cardLines: Array.isArray(parsed.cardLines) ? parsed.cardLines : [],
       events: Array.isArray(parsed.events)
         ? parsed.events.map((e) =>
             e.kind === 'wedding' && e.estimatedCost === 25000 ? { ...e, estimatedCost: 20000 } : e,
@@ -87,6 +91,10 @@ interface Store {
   removeLoan: (id: string) => void
   addLoanLine: (line: LoanLine) => void
   removeLoanLine: (id: string) => void
+  upsertCard: (card: CardAccount) => void
+  removeCard: (id: string) => void
+  addCardLine: (line: CardLine) => void
+  removeCardLine: (id: string) => void
   loadDemo: () => void
   reset: () => void
   exportJson: () => string
@@ -195,6 +203,24 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
         setState((s) => ({ ...s, loanLines: [line, ...(s.loanLines ?? [])] })),
       removeLoanLine: (id) =>
         setState((s) => ({ ...s, loanLines: (s.loanLines ?? []).filter((l) => l.id !== id) })),
+      upsertCard: (card) =>
+        setState((s) => {
+          const cards = [...(s.cards ?? [])]
+          const i = cards.findIndex((c) => c.id === card.id)
+          if (i >= 0) cards[i] = card
+          else cards.unshift(card)
+          return { ...s, cards }
+        }),
+      removeCard: (id) =>
+        setState((s) => ({
+          ...s,
+          cards: (s.cards ?? []).filter((c) => c.id !== id),
+          cardLines: (s.cardLines ?? []).filter((l) => l.cardId !== id),
+        })),
+      addCardLine: (line) =>
+        setState((s) => ({ ...s, cardLines: [line, ...(s.cardLines ?? [])] })),
+      removeCardLine: (id) =>
+        setState((s) => ({ ...s, cardLines: (s.cardLines ?? []).filter((l) => l.id !== id) })),
       loadDemo: () => setState((s) => demoLedger(s)),
       reset: () => setState(emptyLedger()),
       exportJson: () => JSON.stringify(state, null, 2),
@@ -209,6 +235,8 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
           hustleLines: parsed.hustleLines ?? [],
           loans: parsed.loans ?? [],
           loanLines: parsed.loanLines ?? [],
+          cards: parsed.cards ?? [],
+          cardLines: parsed.cardLines ?? [],
           events: (parsed.events ?? []).map((e) =>
             e.kind === 'wedding' && e.estimatedCost === 25000 ? { ...e, estimatedCost: 20000 } : e,
           ),

@@ -12,6 +12,7 @@ import {
 } from '../lib/activity.ts'
 import { hustleTotals, visibleHustleLines } from '../lib/hustle.ts'
 import { debtSummary } from '../lib/loan.ts'
+import { cardSummary } from '../lib/card.ts'
 import { visibleEntries } from '../lib/ledger.ts'
 import { buildAdvice } from '../lib/recommendations.ts'
 import { monthsUntil, prettyDate, usd } from '../lib/money.ts'
@@ -48,6 +49,7 @@ export function Dashboard({ persona }: { persona: Persona }) {
   const recentWeek = groupWeeks(activity)[0]
   const hustle = hustleTotals(visibleHustleLines(state, persona))
   const debt = debtSummary(state, persona)
+  const cards = cardSummary(state, persona)
 
   const greeting =
     persona === 'together'
@@ -135,6 +137,21 @@ export function Dashboard({ persona }: { persona: Persona }) {
           </div>
           <button type="button" onClick={() => setView('loans')} className="text-sm text-gold">
             Log a payment →
+          </button>
+        </div>
+      </Panel>
+
+      <Panel>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-[11px] tracking-[0.2em] text-mute uppercase">Credit cards</p>
+            <h3 className="font-display text-2xl text-mist">{usd(cards.remaining)} on cards</h3>
+            <p className="mt-1 text-sm text-mute">
+              Paid {usd(cards.paidThisMonth)} this month · {usd(cards.paid)} all time
+            </p>
+          </div>
+          <button type="button" onClick={() => setView('cards')} className="text-sm text-gold">
+            Pay a card →
           </button>
         </div>
       </Panel>

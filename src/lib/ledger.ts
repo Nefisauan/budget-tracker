@@ -29,6 +29,8 @@ export function emptyLedger(): LedgerState {
     hustleLines: [],
     loans: [],
     loanLines: [],
+    cards: [],
+    cardLines: [],
     events: [
       {
         id: uid(),

@@ -2,7 +2,7 @@ import type { LedgerState, Loan, LoanLine, Persona } from '../types.ts'
 import { isoDate } from './money.ts'
 import { ownersFor } from './ledger.ts'
 
-export const LOAN_CATEGORIES = ['Student', 'Auto', 'Credit card', 'Personal', 'Medical', 'Other'] as const
+export const LOAN_CATEGORIES = ['Student', 'Auto', 'Personal', 'Medical', 'Other'] as const
 
 export function visibleLoans(state: LedgerState, persona: Persona): Loan[] {
   const allow = new Set(ownersFor(persona))

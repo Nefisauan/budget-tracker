@@ -1,6 +1,7 @@
 import type { AdviceCard, LedgerState, MoneyEntry } from '../types.ts'
 import { monthsUntil, usd } from './money.ts'
 import { hustleTotals, visibleHustleLines } from './hustle.ts'
+import { cardSummary, cardTotals, linesForCard, visibleCards } from './card.ts'
 import { debtSummary, linesForLoan, loanTotals, visibleLoans } from './loan.ts'
 import { riskPosture, sumKind, weddingSavings } from './ledger.ts'
 import { monthlyAmount } from './money.ts'
@@ -212,6 +213,27 @@ export function buildAdvice(state: LedgerState, entries: MoneyEntry[]): AdviceCa
       body: 'Treat profit like a paycheck: skim a tax set-aside (~25–30%), then send the rest to the wedding HYSA or a Roth — not a lifestyle upgrade.',
       why: 'Irregular income is easiest to spend because it feels like a bonus.',
       action: 'Move this month’s hustle profit into Savings or This check as if it were a deposit.',
+    })
+  }
+
+  const owedCards = visibleCards(state, 'together')
+    .map((card) => ({ card, tot: cardTotals(card, linesForCard(state, card.id)) }))
+    .filter((x) => x.tot.remaining > 0)
+    .sort((a, b) => b.card.rate - a.card.rate)
+  const cardDebt = cardSummary(state, 'together')
+  if (cardDebt.remaining > 0) {
+    const worst = owedCards[0]
+    const rateNote =
+      worst && worst.card.rate >= 15
+        ? ` ${worst.card.name} is at ${worst.card.rate}% APR — pay as close to in full as you can.`
+        : ' Pay the statement in full when you can so interest never starts.'
+    cards.push({
+      id: 'card-pay',
+      priority: worst && worst.card.rate >= 15 ? 'now' : 'soon',
+      title: `${usd(cardDebt.remaining)} sitting on credit cards`,
+      body: `Log the payment on Cards when you send it.${rateNote} The balance will not drop until you record it.`,
+      why: 'Card interest is usually the most expensive debt in a young household.',
+      action: 'Open Cards and use Pay in full or log the amount you actually paid.',
     })
   }
 
