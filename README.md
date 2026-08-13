@@ -36,4 +36,6 @@ Pushes to `main` deploy automatically once the GitHub repo is imported in Vercel
 - Build: `npm run build`
 - Output: `dist`
 
-Import: [vercel.com/new](https://vercel.com/new) → GitHub → `Nefisauan/budget-tracker`.
+Live: [orbit-budget-topaz.vercel.app](https://orbit-budget-topaz.vercel.app)
+
+The GitHub repo is connected, so later pushes to `main` ship on their own.
