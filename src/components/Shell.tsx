@@ -41,7 +41,7 @@ const NAV: { id: View; label: string; icon: typeof Wallet }[] = [
 ]
 
 export function Shell() {
-  const { session, setView, exit, state, loadDemo, exportJson, importJson } = useLedger()
+  const { session, setView, exit, state, loadDemo, reset, exportJson, importJson } = useLedger()
   const fileRef = useRef<HTMLInputElement>(null)
   if (!session) return null
   const persona = session.persona
@@ -95,6 +95,15 @@ export function Shell() {
           <div className="space-y-2">
             <Button tone="ghost" className="w-full" onClick={loadDemo}>
               Load sample numbers
+            </Button>
+            <Button
+              tone="ghost"
+              className="w-full"
+              onClick={() => {
+                if (confirm('Start over? This clears every logged number on this device.')) reset()
+              }}
+            >
+              Start over
             </Button>
             <div className="flex gap-2">
               <Button tone="ghost" className="flex-1" onClick={download}>

@@ -19,8 +19,8 @@ import type {
 } from '../types.ts'
 import { demoLedger, emptyLedger } from './ledger.ts'
 
-const LEDGER_KEY = 'orbit-ledger-v1'
-const SESSION_KEY = 'orbit-session-v1'
+const LEDGER_KEY = 'orbit-ledger-v2'
+const SESSION_KEY = 'orbit-session-v2'
 
 function readLedger(): LedgerState {
   try {
