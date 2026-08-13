@@ -8,6 +8,8 @@ import {
 } from 'react'
 import type {
   Activity,
+  Hustle,
+  HustleLine,
   LedgerState,
   LifeEvent,
   MoneyEntry,
@@ -32,6 +34,8 @@ function readLedger(): LedgerState {
         ? parsed.entries.map((e) => ({ ...e, cadence: e.cadence ?? 'monthly' }))
         : [],
       activity: Array.isArray(parsed.activity) ? parsed.activity : [],
+      hustles: Array.isArray(parsed.hustles) ? parsed.hustles : [],
+      hustleLines: Array.isArray(parsed.hustleLines) ? parsed.hustleLines : [],
       events: Array.isArray(parsed.events) ? parsed.events : [],
     }
   } catch {
@@ -65,6 +69,10 @@ interface Store {
   addActivity: (row: Activity) => void
   addActivities: (rows: Activity[]) => void
   removeActivity: (id: string) => void
+  upsertHustle: (hustle: Hustle) => void
+  removeHustle: (id: string) => void
+  addHustleLine: (line: HustleLine) => void
+  removeHustleLine: (id: string) => void
   loadDemo: () => void
   reset: () => void
   exportJson: () => string
@@ -138,6 +146,23 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
         setState((s) => ({ ...s, activity: [...rows, ...s.activity] })),
       removeActivity: (id) =>
         setState((s) => ({ ...s, activity: s.activity.filter((a) => a.id !== id) })),
+      upsertHustle: (hustle) =>
+        setState((s) => {
+          const i = s.hustles.findIndex((h) => h.id === hustle.id)
+          const hustles = [...s.hustles]
+          if (i >= 0) hustles[i] = hustle
+          else hustles.unshift(hustle)
+          return { ...s, hustles }
+        }),
+      removeHustle: (id) =>
+        setState((s) => ({
+          ...s,
+          hustles: s.hustles.filter((h) => h.id !== id),
+          hustleLines: s.hustleLines.filter((l) => l.hustleId !== id),
+        })),
+      addHustleLine: (line) => setState((s) => ({ ...s, hustleLines: [line, ...s.hustleLines] })),
+      removeHustleLine: (id) =>
+        setState((s) => ({ ...s, hustleLines: s.hustleLines.filter((l) => l.id !== id) })),
       loadDemo: () => setState((s) => demoLedger(s)),
       reset: () => setState(emptyLedger()),
       exportJson: () => JSON.stringify(state, null, 2),
@@ -148,6 +173,8 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
           profiles: parsed.profiles,
           entries: (parsed.entries ?? []).map((e) => ({ ...e, cadence: e.cadence ?? 'monthly' })),
           activity: parsed.activity ?? [],
+          hustles: parsed.hustles ?? [],
+          hustleLines: parsed.hustleLines ?? [],
           events: parsed.events ?? [],
         })
       },

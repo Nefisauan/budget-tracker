@@ -1,5 +1,6 @@
 import type { AdviceCard, LedgerState, MoneyEntry } from '../types.ts'
 import { monthsUntil, usd } from './money.ts'
+import { hustleTotals, visibleHustleLines } from './hustle.ts'
 import { riskPosture, sumKind, weddingSavings } from './ledger.ts'
 import { monthlyAmount } from './money.ts'
 
@@ -189,6 +190,27 @@ export function buildAdvice(state: LedgerState, entries: MoneyEntry[]): AdviceCa
       body: 'Live richly, not loosely. Pull fun toward 8–15% and slide the rest toward the wedding or Roths. You will not remember the extra takeout. You will remember a calm wedding and a funded decade.',
       why: 'Fun should be deliberate, not the residual of every weak evening.',
       action: 'Cap personal fun money and keep a shared date-night line so you do not feel punished.',
+    })
+  }
+
+  const hustle = hustleTotals(visibleHustleLines(state, 'together'))
+  if (hustle.cost > 0 && hustle.profit < 0) {
+    cards.push({
+      id: 'hustle-red',
+      priority: 'soon',
+      title: 'The side hustle is costing more than it makes',
+      body: `All-time: ${usd(hustle.revenue)} in, ${usd(hustle.cost)} out — ${usd(Math.abs(hustle.profit))} underwater. Either raise prices, cut supplies/ads, or pause until a gig is clearly profitable. A hobby with inventory is just shopping.`,
+      why: 'Untracked hustle costs quietly eat the wedding fund.',
+      action: 'Open Hustle and log every cost. Kill the lines that do not pay for themselves.',
+    })
+  } else if (hustle.monthProfit > 250) {
+    cards.push({
+      id: 'hustle-profit',
+      priority: 'soon',
+      title: `Side hustle cleared ${usd(hustle.monthProfit)} this month`,
+      body: 'Treat profit like a paycheck: skim a tax set-aside (~25–30%), then send the rest to the wedding HYSA or a Roth — not a lifestyle upgrade.',
+      why: 'Irregular income is easiest to spend because it feels like a bonus.',
+      action: 'Move this month’s hustle profit into Savings or This check as if it were a deposit.',
     })
   }
 

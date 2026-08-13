@@ -25,6 +25,8 @@ export function emptyLedger(): LedgerState {
     },
     entries: [],
     activity: [],
+    hustles: [],
+    hustleLines: [],
     events: [
       {
         id: uid(),
@@ -109,6 +111,17 @@ export function demoLedger(base: LedgerState): LedgerState {
       act(1, 'kaylie', 'investments', 'Retirement', 'Kaylie Roth', 200),
       act(1, 'nefi', 'investments', 'Retirement', 'Nefi Roth', 280),
       act(1, 'shared', 'savings', 'Wedding', 'Wedding HYSA', 500),
+    ],
+    hustles: [
+      { id: 'demo-kaylie-hustle', name: 'Weekend freelance', owner: 'kaylie', notes: 'Design gigs' },
+      { id: 'demo-nefi-hustle', name: 'Resale shop', owner: 'nefi', notes: 'Weekend flips' },
+    ],
+    hustleLines: [
+      { id: uid(), hustleId: 'demo-kaylie-hustle', kind: 'revenue', category: 'Freelance', label: 'Logo job', amount: 450, date: shiftDays(today, -18), notes: '' },
+      { id: uid(), hustleId: 'demo-kaylie-hustle', kind: 'cost', category: 'Software', label: 'Adobe month', amount: 55, date: shiftDays(today, -16), notes: '' },
+      { id: uid(), hustleId: 'demo-kaylie-hustle', kind: 'revenue', category: 'Freelance', label: 'Landing page', amount: 700, date: shiftDays(today, -4), notes: '' },
+      { id: uid(), hustleId: 'demo-nefi-hustle', kind: 'cost', category: 'Inventory', label: 'Thrift haul', amount: 120, date: shiftDays(today, -12), notes: '' },
+      { id: uid(), hustleId: 'demo-nefi-hustle', kind: 'revenue', category: 'Sales', label: 'Sold two jackets', amount: 210, date: shiftDays(today, -3), notes: '' },
     ],
   }
 }

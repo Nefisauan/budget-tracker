@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import type { Persona } from '../types.ts'
 import { groupWeeks, sumActivity, visibleActivity, weekChart } from '../lib/activity.ts'
+import { hustleTotals, visibleHustleLines } from '../lib/hustle.ts'
 import { allocationSlices, byCategory, splitByOwner, sumKind, visibleEntries, weddingSavings } from '../lib/ledger.ts'
 import { buildAdvice } from '../lib/recommendations.ts'
 import { monthsUntil, pct, prettyDate, usd } from '../lib/money.ts'
@@ -36,6 +37,7 @@ export function Dashboard({ persona }: { persona: Persona }) {
   const investedAll = sumActivity(activity, 'investments')
   const savedAll = sumActivity(activity, 'savings')
   const recentWeek = groupWeeks(activity)[0]
+  const hustle = hustleTotals(visibleHustleLines(state, persona))
 
   const greeting =
     persona === 'together'
@@ -90,6 +92,23 @@ export function Dashboard({ persona }: { persona: Persona }) {
           hint={surplus >= 0 ? 'Ready to assign or invest' : 'Over the line — trim something'}
         />
       </div>
+
+      <Panel>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-[11px] tracking-[0.2em] text-mute uppercase">Side hustle</p>
+            <h3 className="font-display text-2xl text-mist">
+              {hustle.profit >= 0 ? `${usd(hustle.profit)} profit` : `${usd(Math.abs(hustle.profit))} in the red`}
+            </h3>
+            <p className="mt-1 text-sm text-mute">
+              {usd(hustle.revenue)} in · {usd(hustle.cost)} out · {usd(hustle.monthProfit)} this month
+            </p>
+          </div>
+          <button type="button" onClick={() => setView('hustle')} className="text-sm text-gold">
+            Log costs & sales →
+          </button>
+        </div>
+      </Panel>
 
       <Panel>
         <div className="flex flex-wrap items-end justify-between gap-3">

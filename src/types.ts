@@ -3,7 +3,8 @@ export type Owner = 'kaylie' | 'nefi' | 'shared'
 export type FlowKind = 'income' | 'spend' | 'fun' | 'savings' | 'investments'
 export type Cadence = 'weekly' | 'biweekly' | 'semimonthly' | 'monthly' | 'yearly'
 export type EventKind = 'wedding' | 'travel' | 'home' | 'career' | 'family' | 'celebration' | 'other'
-export type View = 'dashboard' | 'paycheck' | 'activity' | 'income' | 'spend' | 'fun' | 'savings' | 'investments' | 'events' | 'advice'
+export type HustleLineKind = 'revenue' | 'cost'
+export type View = 'dashboard' | 'paycheck' | 'activity' | 'hustle' | 'income' | 'spend' | 'fun' | 'savings' | 'investments' | 'events' | 'advice'
 
 export interface ProfileMeta {
   name: string
@@ -34,6 +35,24 @@ export interface Activity {
   notes: string
 }
 
+export interface Hustle {
+  id: string
+  name: string
+  owner: Owner
+  notes: string
+}
+
+export interface HustleLine {
+  id: string
+  hustleId: string
+  kind: HustleLineKind
+  category: string
+  label: string
+  amount: number
+  date: string
+  notes: string
+}
+
 export interface LifeEvent {
   id: string
   title: string
@@ -50,6 +69,8 @@ export interface LedgerState {
   }
   entries: MoneyEntry[]
   activity: Activity[]
+  hustles: Hustle[]
+  hustleLines: HustleLine[]
   events: LifeEvent[]
 }
 
