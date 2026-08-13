@@ -1,9 +1,10 @@
-import { Calculator } from 'lucide-react'
-import type { BudgetCategory, BudgetPlan } from '../types.ts'
-import { pct, usd } from '../lib/money.ts'
+import type { BudgetCategory, Persona } from '../types.ts'
+import { sumActivity, visibleActivity } from '../lib/activity.ts'
+import { visibleHustleLines } from '../lib/hustle.ts'
+import { isoDate, pct, usd } from '../lib/money.ts'
 import { useLedger } from '../lib/store.tsx'
 import { SplitPie } from './Charts.tsx'
-import { Button, Field, Panel, fieldClass } from './ui.tsx'
+import { Panel, fieldClass } from './ui.tsx'
 
 const CATEGORIES: {
   key: BudgetCategory
@@ -11,132 +12,114 @@ const CATEGORIES: {
   hint: string
   color: string
 }[] = [
-  { key: 'needs', label: 'Needs', hint: 'Housing, food, utilities', color: '#c56b86' },
-  { key: 'fun', label: 'Fun', hint: 'Dates, hobbies, travel', color: '#e4c37a' },
-  { key: 'business', label: 'Business', hint: 'Tools, inventory, growth', color: '#a78bfa' },
-  { key: 'extra', label: 'Extra cash', hint: 'Flexible or unplanned', color: '#f59e0b' },
-  { key: 'investing', label: 'Investing', hint: 'Retirement and brokerage', color: '#8b9cff' },
-  { key: 'savings', label: 'Savings', hint: 'Emergency and future goals', color: '#7ee7d6' },
+  { key: 'needs', label: 'Needs', hint: 'Needs logged in Activity', color: '#c56b86' },
+  { key: 'fun', label: 'Fun', hint: 'Fun logged in Activity', color: '#e4c37a' },
+  { key: 'business', label: 'Business', hint: 'Costs logged under Hustle', color: '#a78bfa' },
+  { key: 'extra', label: 'Extra cash', hint: 'Income left after every category', color: '#f59e0b' },
+  { key: 'investing', label: 'Investing', hint: 'Investments logged in Activity', color: '#8b9cff' },
+  { key: 'savings', label: 'Savings', hint: 'Savings logged in Activity', color: '#7ee7d6' },
 ]
 
 function positive(value: string): number {
   return Math.max(0, Number(value) || 0)
 }
 
-export function BudgetView() {
+export function BudgetView({ persona }: { persona: Persona }) {
   const { state, setBudgetPlan } = useLedger()
+  const month = isoDate().slice(0, 7)
+  const activity = visibleActivity(state, persona).filter((row) => row.date.startsWith(month))
+  const hustle = visibleHustleLines(state, persona).filter((row) => row.date.startsWith(month))
+  const activityIncome = sumActivity(activity, 'income')
+  const businessRevenue = hustle
+    .filter((row) => row.kind === 'revenue')
+    .reduce((sum, row) => sum + row.amount, 0)
+  const income = activityIncome + businessRevenue
+  const spent = {
+    needs: sumActivity(activity, 'spend'),
+    fun: sumActivity(activity, 'fun'),
+    business: hustle.filter((row) => row.kind === 'cost').reduce((sum, row) => sum + row.amount, 0),
+    investing: sumActivity(activity, 'investments'),
+    savings: sumActivity(activity, 'savings'),
+  }
+  const assigned = spent.needs + spent.fun + spent.business + spent.investing + spent.savings
+  const remaining = income - assigned
+  const actual: Record<BudgetCategory, number> = {
+    ...spent,
+    extra: Math.max(0, remaining),
+  }
   const plan = state.budgetPlan
-  const allocated = CATEGORIES.reduce((sum, category) => sum + plan.allocations[category.key], 0)
-  const remaining = plan.income - allocated
   const goalTotal = CATEGORIES.reduce((sum, category) => sum + plan.goals[category.key], 0)
   const slices = CATEGORIES.map((category) => ({
     key: category.key,
     label: category.label,
-    value: plan.allocations[category.key],
+    value: actual[category.key],
     color: category.color,
   })).filter((slice) => slice.value > 0)
 
-  function save(changes: Partial<BudgetPlan>) {
-    setBudgetPlan({ ...plan, ...changes })
-  }
-
-  function buildFromGoals() {
-    if (plan.income <= 0 || goalTotal <= 0) return
-    const allocations = { ...plan.allocations }
-    for (const category of CATEGORIES) {
-      allocations[category.key] = Math.round((plan.income * plan.goals[category.key]) / goalTotal)
-    }
-    save({ allocations })
+  function saveGoal(category: BudgetCategory, value: string) {
+    const goals = { ...plan.goals, [category]: positive(value) }
+    setBudgetPlan({ goals })
   }
 
   return (
     <div className="space-y-5 pb-24 md:pb-4">
       <div>
-        <p className="text-[11px] tracking-[0.28em] text-gold uppercase">Budget planner</p>
-        <h2 className="mt-1 font-display text-4xl font-light text-mist">Give every dollar a purpose</h2>
+        <p className="text-[11px] tracking-[0.28em] text-gold uppercase">Budget tracker</p>
+        <h2 className="mt-1 font-display text-4xl font-light text-mist">Your month, calculated live</h2>
         <p className="mt-2 max-w-2xl text-sm text-mute">
-          Enter your monthly take-home income, divide it across the six categories, and compare the plan with your goal.
-          Changes save automatically on this device.
+          Every income, expense, hustle cost, investment, and savings entry you log updates this month automatically.
+          The dollar goals below are the only numbers you set here.
         </p>
       </div>
 
-      <Panel>
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-          <Field label="Monthly take-home income">
-            <div className="relative">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-mute">$</span>
-              <input
-                className={`${fieldClass()} pl-7`}
-                type="number"
-                min="0"
-                step="1"
-                inputMode="decimal"
-                value={plan.income || ''}
-                placeholder="0"
-                onChange={(event) => save({ income: positive(event.target.value) })}
-              />
-            </div>
-          </Field>
-          <Button onClick={buildFromGoals} className="inline-flex items-center justify-center gap-2">
-            <Calculator size={16} />
-            Calculate from our goal
-          </Button>
-        </div>
-      </Panel>
-
-      <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+      <div className="grid gap-4 sm:grid-cols-3">
         <Panel>
-          <p className="text-[11px] tracking-[0.2em] text-mute uppercase">Your monthly inputs</p>
-          <h3 className="font-display text-2xl text-mist">Planned budget</h3>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            {CATEGORIES.map((category) => (
-              <Field key={category.key} label={category.label}>
-                <div>
-                  <div className="relative">
-                    <i
-                      className="pointer-events-none absolute left-3 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full"
-                      style={{ background: category.color }}
-                    />
-                    <input
-                      className={`${fieldClass()} pl-8`}
-                      type="number"
-                      min="0"
-                      step="1"
-                      inputMode="decimal"
-                      value={plan.allocations[category.key] || ''}
-                      placeholder="0"
-                      onChange={(event) =>
-                        save({
-                          allocations: {
-                            ...plan.allocations,
-                            [category.key]: positive(event.target.value),
-                          },
-                        })
-                      }
-                    />
-                  </div>
-                  <p className="mt-1 text-[11px] text-mute">{category.hint}</p>
-                </div>
-              </Field>
-            ))}
+          <p className="text-[11px] tracking-[0.2em] text-mute uppercase">Logged income</p>
+          <p className="mt-2 font-display text-3xl text-gold">{usd(income)}</p>
+          <p className="mt-1 text-xs text-mute">Paychecks + hustle revenue this month</p>
+        </Panel>
+        <Panel>
+          <p className="text-[11px] tracking-[0.2em] text-mute uppercase">Assigned</p>
+          <p className="mt-2 font-display text-3xl text-mist">{usd(assigned)}</p>
+          <p className="mt-1 text-xs text-mute">Everything logged outside income</p>
+        </Panel>
+        <Panel>
+          <p className="text-[11px] tracking-[0.2em] text-mute uppercase">{remaining < 0 ? 'Over income' : 'Extra cash'}</p>
+          <p className={`mt-2 font-display text-3xl ${remaining < 0 ? 'text-rose' : 'text-teal'}`}>
+            {usd(Math.abs(remaining))}
+          </p>
+          <p className="mt-1 text-xs text-mute">Recalculates after every log</p>
+        </Panel>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+        <Panel>
+          <p className="text-[11px] tracking-[0.2em] text-mute uppercase">Live split</p>
+          <h3 className="font-display text-2xl text-mist">Where this month went</h3>
+          <div className="mt-2">
+            <SplitPie data={slices} />
           </div>
         </Panel>
 
         <Panel>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-[11px] tracking-[0.2em] text-mute uppercase">Calculated split</p>
-              <h3 className="font-display text-2xl text-mist">Where the money goes</h3>
-            </div>
-            <div className="text-right">
-              <p className={`font-display text-2xl ${remaining < 0 ? 'text-rose' : 'text-teal'}`}>
-                {remaining < 0 ? `${usd(Math.abs(remaining))} over` : `${usd(remaining)} left`}
-              </p>
-              <p className="text-xs text-mute">{usd(allocated)} allocated</p>
-            </div>
-          </div>
-          <div className="mt-2">
-            <SplitPie data={slices} />
+          <p className="text-[11px] tracking-[0.2em] text-mute uppercase">Current totals</p>
+          <h3 className="font-display text-2xl text-mist">Calculated from your logs</h3>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            {CATEGORIES.map((category) => (
+              <div key={category.key} className="rounded-2xl border border-white/8 bg-white/4 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="flex items-center gap-2 text-sm text-mist">
+                    <i className="h-2.5 w-2.5 rounded-full" style={{ background: category.color }} />
+                    {category.label}
+                  </span>
+                  <span className="font-display text-xl text-gold">{usd(actual[category.key])}</span>
+                </div>
+                <p className="mt-1 text-[11px] text-mute">
+                  {category.hint}
+                  {income > 0 ? ` · ${pct(actual[category.key] / income)}` : ''}
+                </p>
+              </div>
+            ))}
           </div>
         </Panel>
       </div>
@@ -145,17 +128,16 @@ export function BudgetView() {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-[11px] tracking-[0.2em] text-mute uppercase">Our goal</p>
-            <h3 className="font-display text-2xl text-mist">Target budget</h3>
-            <p className="mt-1 text-sm text-mute">Set the percentage you want each category to receive.</p>
+            <h3 className="font-display text-2xl text-mist">Monthly dollar targets</h3>
+            <p className="mt-1 text-sm text-mute">Enter how many dollars you want in each category every month.</p>
           </div>
-          <p className={`text-sm ${goalTotal === 100 ? 'text-teal' : 'text-rose'}`}>
-            Goal total: {goalTotal}% {goalTotal === 100 ? '· ready to calculate' : '· should equal 100%'}
-          </p>
+          <p className="text-sm text-gold">{usd(goalTotal)} total goal</p>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {CATEGORIES.map((category) => {
-            const target = plan.income * (plan.goals[category.key] / 100)
-            const actual = plan.allocations[category.key]
+            const goal = plan.goals[category.key]
+            const current = actual[category.key]
+            const progress = goal > 0 ? Math.min(1, current / goal) : 0
             return (
               <div key={category.key} className="rounded-2xl border border-white/8 bg-white/4 p-4">
                 <div className="flex items-center justify-between gap-3">
@@ -163,29 +145,30 @@ export function BudgetView() {
                     <i className="h-2.5 w-2.5 rounded-full" style={{ background: category.color }} />
                     {category.label}
                   </span>
-                  <div className="relative w-20">
+                  <div className="relative w-28">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-mute">$</span>
                     <input
-                      className={`${fieldClass()} pr-7 text-right`}
+                      className={`${fieldClass()} pl-7 text-right`}
                       type="number"
                       min="0"
                       step="1"
-                      value={plan.goals[category.key]}
-                      onChange={(event) =>
-                        save({
-                          goals: {
-                            ...plan.goals,
-                            [category.key]: positive(event.target.value),
-                          },
-                        })
-                      }
+                      inputMode="decimal"
+                      value={goal || ''}
+                      placeholder="0"
+                      onChange={(event) => saveGoal(category.key, event.target.value)}
                     />
-                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-mute">%</span>
                   </div>
                 </div>
-                <div className="mt-3 flex items-center justify-between text-xs">
-                  <span className="text-mute">Target {usd(target)}</span>
-                  <span className={actual >= target ? 'text-teal' : 'text-mute'}>
-                    {plan.income > 0 ? pct(actual / plan.income) : '0%'} planned
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/8">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${progress * 100}%`, background: category.color }}
+                  />
+                </div>
+                <div className="mt-2 flex items-center justify-between text-xs">
+                  <span className="text-mute">{usd(current)} current</span>
+                  <span className={goal > 0 && current >= goal ? 'text-teal' : 'text-mute'}>
+                    {goal > 0 ? `${Math.round((current / goal) * 100)}% of goal` : 'Set a goal'}
                   </span>
                 </div>
               </div>

@@ -34,13 +34,30 @@ function stamp<T extends { createdAt?: string }>(row: T): T {
 const LEDGER_KEY = 'orbit-ledger-v2'
 const SESSION_KEY = 'orbit-session-v2'
 
+function migrateBudgetPlan(raw?: BudgetPlan): BudgetPlan {
+  const fallback = emptyBudgetPlan()
+  const legacy = raw as (BudgetPlan & { income?: number; allocations?: Record<string, number> }) | undefined
+  if (!legacy?.goals) return fallback
+  if (legacy.allocations) {
+    const income = Number(legacy.income) || 0
+    return {
+      goals: Object.fromEntries(
+        Object.entries(fallback.goals).map(([key]) => [
+          key,
+          Math.round((income * (Number(legacy.goals[key as keyof BudgetPlan['goals']]) || 0)) / 100),
+        ]),
+      ) as BudgetPlan['goals'],
+    }
+  }
+  return { goals: { ...fallback.goals, ...legacy.goals } }
+}
+
 function readLedger(): LedgerState {
   try {
     const raw = localStorage.getItem(LEDGER_KEY)
     if (!raw) return emptyLedger()
     const parsed = JSON.parse(raw) as LedgerState
     if (!parsed?.profiles?.kaylie || !parsed?.profiles?.nefi) return emptyLedger()
-    const budgetPlan = emptyBudgetPlan()
     return {
       profiles: parsed.profiles,
       entries: Array.isArray(parsed.entries)
@@ -62,11 +79,7 @@ function readLedger(): LedgerState {
             e.kind === 'wedding' && e.estimatedCost === 25000 ? { ...e, estimatedCost: 20000 } : e,
           )
         : [],
-      budgetPlan: {
-        income: Number(parsed.budgetPlan?.income) || 0,
-        allocations: { ...budgetPlan.allocations, ...parsed.budgetPlan?.allocations },
-        goals: { ...budgetPlan.goals, ...parsed.budgetPlan?.goals },
-      },
+      budgetPlan: migrateBudgetPlan(parsed.budgetPlan),
     }
   } catch {
     return emptyLedger()
@@ -269,7 +282,6 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
       importJson: (raw) => {
         const parsed = JSON.parse(raw) as LedgerState
         if (!parsed?.profiles?.kaylie) throw new Error('Not an Orbit ledger')
-        const budgetPlan = emptyBudgetPlan()
         setState({
           profiles: parsed.profiles,
           entries: (parsed.entries ?? []).map((e) => ({ ...e, cadence: e.cadence ?? 'monthly' })),
@@ -285,11 +297,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
           events: (parsed.events ?? []).map((e) =>
             e.kind === 'wedding' && e.estimatedCost === 25000 ? { ...e, estimatedCost: 20000 } : e,
           ),
-          budgetPlan: {
-            income: Number(parsed.budgetPlan?.income) || 0,
-            allocations: { ...budgetPlan.allocations, ...parsed.budgetPlan?.allocations },
-            goals: { ...budgetPlan.goals, ...parsed.budgetPlan?.goals },
-          },
+          budgetPlan: migrateBudgetPlan(parsed.budgetPlan),
         })
       },
     }),

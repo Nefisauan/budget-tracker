@@ -133,8 +133,6 @@ export interface LifeEvent {
 }
 
 export interface BudgetPlan {
-  income: number
-  allocations: Record<BudgetCategory, number>
   goals: Record<BudgetCategory, number>
 }
 

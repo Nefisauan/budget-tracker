@@ -284,7 +284,7 @@ export function Shell() {
 
 function ViewBody({ view, persona }: { view: View; persona: Persona }) {
   if (view === 'dashboard') return <Dashboard persona={persona} />
-  if (view === 'budget') return <BudgetView />
+  if (view === 'budget') return <BudgetView persona={persona} />
   if (view === 'cash') return <CashView persona={persona} />
   if (view === 'paycheck') return <PaycheckView persona={persona} />
   if (view === 'activity') return <ActivityView persona={persona} />

@@ -3,9 +3,7 @@ import { isoDate, monthlyAmount, shiftDays, uid } from './money.ts'
 
 export function emptyBudgetPlan(): BudgetPlan {
   return {
-    income: 0,
-    allocations: { needs: 0, fun: 0, business: 0, extra: 0, investing: 0, savings: 0 },
-    goals: { needs: 50, fun: 10, business: 10, extra: 5, investing: 15, savings: 10 },
+    goals: { needs: 0, fun: 0, business: 0, extra: 0, investing: 0, savings: 0 },
   }
 }
 
