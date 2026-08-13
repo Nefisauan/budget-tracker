@@ -33,10 +33,16 @@ function readLedger(): LedgerState {
       entries: Array.isArray(parsed.entries)
         ? parsed.entries.map((e) => ({ ...e, cadence: e.cadence ?? 'monthly' }))
         : [],
-      activity: Array.isArray(parsed.activity) ? parsed.activity : [],
+      activity: Array.isArray(parsed.activity)
+        ? parsed.activity.filter((a) => a.notes !== 'From this-check split')
+        : [],
       hustles: Array.isArray(parsed.hustles) ? parsed.hustles : [],
       hustleLines: Array.isArray(parsed.hustleLines) ? parsed.hustleLines : [],
-      events: Array.isArray(parsed.events) ? parsed.events : [],
+      events: Array.isArray(parsed.events)
+        ? parsed.events.map((e) =>
+            e.kind === 'wedding' && e.estimatedCost === 25000 ? { ...e, estimatedCost: 20000 } : e,
+          )
+        : [],
     }
   } catch {
     return emptyLedger()
@@ -172,10 +178,12 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
         setState({
           profiles: parsed.profiles,
           entries: (parsed.entries ?? []).map((e) => ({ ...e, cadence: e.cadence ?? 'monthly' })),
-          activity: parsed.activity ?? [],
+          activity: (parsed.activity ?? []).filter((a) => a.notes !== 'From this-check split'),
           hustles: parsed.hustles ?? [],
           hustleLines: parsed.hustleLines ?? [],
-          events: parsed.events ?? [],
+          events: (parsed.events ?? []).map((e) =>
+            e.kind === 'wedding' && e.estimatedCost === 25000 ? { ...e, estimatedCost: 20000 } : e,
+          ),
         })
       },
     }),

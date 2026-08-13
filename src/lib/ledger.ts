@@ -33,7 +33,7 @@ export function emptyLedger(): LedgerState {
         title: 'Our wedding',
         date: '2027-06-12',
         kind: 'wedding',
-        estimatedCost: 25000,
+        estimatedCost: 20000,
         notes: 'The big day — keep this fund in cash, not the market.',
       },
     ],

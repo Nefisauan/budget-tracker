@@ -1,6 +1,6 @@
-import type { LedgerState, MoneyEntry, Owner } from '../types.ts'
-import { monthsUntil, monthlyAmount, usd } from './money.ts'
-import { riskPosture, sumKind, weddingSavings } from './ledger.ts'
+import type { LedgerState, Owner } from '../types.ts'
+import { monthsUntil, usd } from './money.ts'
+import { riskPosture } from './ledger.ts'
 
 export interface PaySlice {
   key: string
@@ -48,30 +48,11 @@ function roundDollars(total: number, weights: { key: string; w: number }[]): Rec
   return out
 }
 
-function clampW(n: number): number {
-  return Math.max(0, n)
-}
-
-export function recommendPaycheckSplit(
-  check: number,
-  owner: Owner,
-  state: LedgerState,
-  entries: MoneyEntry[],
-): PayPlan {
+export function recommendPaycheckSplit(check: number, owner: Owner, state: LedgerState): PayPlan {
   const who =
     owner === 'shared' ? 'the house' : owner === 'kaylie' ? state.profiles.kaylie.name : state.profiles.nefi.name
   const age = Math.min(state.profiles.kaylie.age, state.profiles.nefi.age)
   const risk = riskPosture(age)
-  const income = sumKind(entries, 'income')
-  const spend = sumKind(entries, 'spend')
-  const fun = sumKind(entries, 'fun')
-  const savings = sumKind(entries, 'savings')
-  const investments = sumKind(entries, 'investments')
-  const weddingFund = weddingSavings(entries)
-  const emergencyMonthly = entries
-    .filter((e) => e.kind === 'savings' && e.category.toLowerCase().includes('emergency'))
-    .reduce((n, e) => n + monthlyAmount(e), 0)
-  const otherSavings = Math.max(0, savings - weddingFund - emergencyMonthly)
   const wedding = [...state.events].find((e) => e.kind === 'wedding')
   const monthsToWedding = wedding ? monthsUntil(wedding.date) : null
   const nearEvent = [...state.events]
@@ -81,83 +62,36 @@ export function recommendPaycheckSplit(
   let needs = 0.5
   let funW = 0.1
   let emergency = 0.1
-  let weddingW = 0.15
+  let weddingW = wedding ? 0.15 : 0
   let eventW = 0
   let invest = 0.15
-  let buffer = 0
+  const notes: string[] = [
+    'Suggestion only. Logging this paycheck does not change investments or anything else you already entered.',
+  ]
 
-  const notes: string[] = []
-
-  if (income > 0 && spend + fun + savings + investments > 0) {
-    needs = spend / income
-    funW = fun / income
-    const savePct = savings / income
-    const investPct = investments / income
-    const rest = Math.max(0, 1 - needs - funW - savePct - investPct)
-    if (savings > 0) {
-      weddingW = savePct * (weddingFund / savings)
-      emergency = savePct * (emergencyMonthly / savings)
-      eventW = savePct * (otherSavings / savings)
-    } else {
-      weddingW = 0
-      emergency = 0
-      eventW = 0
-    }
-    invest = investPct
-    buffer = rest
-    notes.push('This follows the mix already on your ledger, then tilts for what’s coming.')
-  } else {
-    notes.push(`No monthly mix yet, so this is a starter split for age ${age}: live, enjoy a little, and fund the near term in cash.`)
-  }
-
-  if (wedding && monthsToWedding !== null && monthsToWedding > 0 && wedding.estimatedCost > 0) {
-    const neededMonthly = wedding.estimatedCost / Math.max(monthsToWedding, 1)
-    const behind = weddingFund < neededMonthly * 0.85
-    if (monthsToWedding < 18 && behind) {
-      const bump = monthsToWedding < 8 ? 0.12 : 0.08
-      weddingW += bump
-      invest = clampW(invest - bump * 0.7)
-      funW = clampW(funW - bump * 0.3)
-      notes.push(
-        `Wedding is ${Math.max(1, Math.round(monthsToWedding))} months out and the sinking fund is behind ~${usd(neededMonthly)}/mo. This check puts extra in cash, not the market.`,
-      )
-    } else if (monthsToWedding < 24) {
-      weddingW = Math.max(weddingW, 0.12)
-      notes.push('Wedding dollars from this check stay in a HYSA. Long-term investing waits for non-wedding money.')
-    }
-  } else if (!wedding) {
-    weddingW = 0
+  if (wedding && monthsToWedding !== null && monthsToWedding > 0 && monthsToWedding < 18) {
+    weddingW = 0.2
+    invest = 0.1
+    notes.push(
+      `Wedding is about ${Math.max(1, Math.round(monthsToWedding))} months out${wedding.estimatedCost ? ` · ${usd(wedding.estimatedCost)}` : ''}. Park that slice in cash.`,
+    )
   }
 
   if (nearEvent) {
-    const m = Math.max(1, monthsUntil(nearEvent.date))
-    eventW = Math.max(eventW, 0.08)
-    notes.push(`${nearEvent.title} is in ${Math.round(m)} months — skim a named sinking fund from this deposit.`)
+    eventW = 0.08
+    invest = Math.max(0.05, invest - 0.05)
+    notes.push(`${nearEvent.title} is coming — optional sinking-fund skim, only if you log it.`)
   }
 
-  const runway = spend > 0 ? savings / spend : 99
-  if (runway < 1) {
-    emergency = Math.max(emergency, 0.18)
-    invest = clampW(invest - 0.08)
-    notes.push('Emergency cash is thin. Fill a one-month cushion before you get brave with brokerage.')
-  } else if (runway < 3) {
-    emergency = Math.max(emergency, 0.1)
-  }
-
-  funW = Math.max(funW, 0.05)
-  if (age < 26 && runway >= 1 && !(wedding && monthsToWedding !== null && monthsToWedding < 8)) {
-    invest = Math.max(invest, 0.08)
-    notes.push(`${risk.label} posture (~${risk.equity}% equity on long-horizon money). Roth/index after cash jobs are funded.`)
-  }
+  notes.push(`${risk.label} posture at ${age}: long-horizon leftover can go to a Roth after cash jobs are funded.`)
 
   const weights = [
-    { key: 'needs', w: clampW(needs) },
-    { key: 'fun', w: clampW(funW) },
-    { key: 'emergency', w: clampW(emergency) },
-    { key: 'wedding', w: clampW(weddingW) },
-    { key: 'event', w: clampW(eventW) },
-    { key: 'invest', w: clampW(invest) },
-    { key: 'buffer', w: clampW(buffer) },
+    { key: 'needs', w: needs },
+    { key: 'fun', w: funW },
+    { key: 'emergency', w: emergency },
+    { key: 'wedding', w: weddingW },
+    { key: 'event', w: eventW },
+    { key: 'invest', w: invest },
   ]
   const dollars = roundDollars(Math.round(check), weights)
   const total = Math.round(check) || 1
@@ -166,23 +100,21 @@ export function recommendPaycheckSplit(
     needs: 'Needs',
     fun: 'Fun',
     emergency: 'Emergency',
-    wedding: wedding ? 'Wedding fund' : 'Wedding',
+    wedding: 'Wedding fund',
     event: nearEvent ? nearEvent.title : 'Sinking fund',
     invest: 'Invest',
-    buffer: 'Leave in checking',
   }
   const whys: Record<string, string> = {
-    needs: 'Rent, food, transport — the life you already owe this month.',
-    fun: 'A no-questions envelope so the rest of the plan actually sticks.',
-    emergency: 'Cash for a bad week. Separate from the wedding.',
+    needs: 'Rent, food, transport — only log this if you actually paid it from this check.',
+    fun: 'Date night / joy money. Does not get written unless you log it.',
+    emergency: 'Cash cushion. Separate from the wedding.',
     wedding: 'HYSA only. This date does not get market risk.',
-    event: 'A named pile for a dated cost, not “general savings.”',
-    invest: 'Roth / index funds. Money you will not touch for 5+ years.',
-    buffer: 'Float until the next bill hits. Don’t let it become mystery spending.',
+    event: 'A named pile for a dated cost.',
+    invest: 'Roth / index. Your existing investments are not changed by this suggestion.',
   }
 
-  const order = ['needs', 'fun', 'emergency', 'wedding', 'event', 'invest', 'buffer']
-  const slices: PaySlice[] = order
+  const order = ['needs', 'fun', 'emergency', 'wedding', 'event', 'invest']
+  const slices = order
     .filter((key) => (dollars[key] ?? 0) > 0)
     .map((key) => ({
       key,
@@ -194,8 +126,8 @@ export function recommendPaycheckSplit(
     }))
 
   return {
-    headline: `${who} got paid ${usd(check)}. Split it like this.`,
-    sub: 'This is for this deposit — it does not change your monthly ledger unless you go add the lines.',
+    headline: `${who} got paid ${usd(check)}.`,
+    sub: 'Log the paycheck to add it. The pie below is advice — it will not rewrite what you already logged.',
     slices,
     notes,
   }

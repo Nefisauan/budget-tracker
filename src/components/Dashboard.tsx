@@ -1,10 +1,19 @@
 import { lazy, Suspense } from 'react'
 import type { Persona } from '../types.ts'
-import { groupWeeks, sumActivity, visibleActivity, weekChart } from '../lib/activity.ts'
+import {
+  allocationFromActivity,
+  byCategoryActivity,
+  groupWeeks,
+  splitByOwnerActivity,
+  sumActivity,
+  thisMonth,
+  visibleActivity,
+  weekChart,
+} from '../lib/activity.ts'
 import { hustleTotals, visibleHustleLines } from '../lib/hustle.ts'
-import { allocationSlices, byCategory, splitByOwner, sumKind, visibleEntries, weddingSavings } from '../lib/ledger.ts'
+import { visibleEntries } from '../lib/ledger.ts'
 import { buildAdvice } from '../lib/recommendations.ts'
-import { monthsUntil, pct, prettyDate, usd } from '../lib/money.ts'
+import { monthsUntil, prettyDate, usd } from '../lib/money.ts'
 import { useLedger } from '../lib/store.tsx'
 import { CategoryBars, OwnerBars, SplitPie, WeekBars } from './Charts.tsx'
 import { Metric, Panel } from './ui.tsx'
@@ -21,21 +30,20 @@ const ObservatoryCanvas = lazy(async () => {
 export function Dashboard({ persona }: { persona: Persona }) {
   const { state, setView } = useLedger()
   const entries = visibleEntries(state, persona)
-  const income = sumKind(entries, 'income')
-  const spend = sumKind(entries, 'spend')
-  const fun = sumKind(entries, 'fun')
-  const savings = sumKind(entries, 'savings')
-  const investments = sumKind(entries, 'investments')
-  const assigned = spend + fun + savings + investments
-  const surplus = income - assigned
-  const slices = allocationSlices(entries)
+  const activity = visibleActivity(state, persona)
+  const income = sumActivity(activity, 'income')
+  const savings = sumActivity(activity, 'savings')
+  const investments = sumActivity(activity, 'investments')
+  const incomeMonth = thisMonth(activity.filter((a) => a.kind === 'income'))
+  const slices = allocationFromActivity(activity)
   const advice = buildAdvice(state, entries).slice(0, 3)
   const wedding = state.events.find((e) => e.kind === 'wedding')
   const nextEvent = [...state.events].sort((a, b) => a.date.localeCompare(b.date))[0]
-  const fund = weddingSavings(entries)
-  const activity = visibleActivity(state, persona)
-  const investedAll = sumActivity(activity, 'investments')
-  const savedAll = sumActivity(activity, 'savings')
+  const fund = activity
+    .filter((a) => a.kind === 'savings' && a.category.toLowerCase().includes('wedding'))
+    .reduce((n, a) => n + a.amount, 0)
+  const investedAll = investments
+  const savedAll = savings
   const recentWeek = groupWeeks(activity)[0]
   const hustle = hustleTotals(visibleHustleLines(state, persona))
 
@@ -53,7 +61,7 @@ export function Dashboard({ persona }: { persona: Persona }) {
           <p className="text-[11px] tracking-[0.28em] text-gold uppercase">Dashboard</p>
           <h2 className="mt-1 font-display text-4xl font-light text-mist">{greeting}</h2>
           <p className="mt-2 max-w-xl text-sm text-mute">
-            Numbers persist as you add them. Counsel shifts with your ages and whatever is coming — wedding, home, or otherwise.
+            Nothing is recalculated. Totals only move when you log a paycheck, investment, cost, or hustle line.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -67,29 +75,33 @@ export function Dashboard({ persona }: { persona: Persona }) {
           {income === 0 ? (
             <button
               type="button"
-              onClick={() => setView('income')}
+              onClick={() => setView('activity')}
               className="rounded-full border border-white/15 px-4 py-2 text-sm text-mist"
             >
-              Add recurring pay
+              Log an investment
             </button>
           ) : null}
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric kicker="Monthly income" value={usd(income)} hint="Combined in this view" />
-        <Metric kicker="Assigned" value={usd(assigned)} hint={income ? `${pct(assigned / income)} of pay` : 'Log income first'} />
+        <Metric kicker="Logged income" value={usd(income)} hint={`${usd(incomeMonth)} this month · all time`} />
+        <Metric
+          kicker="Invested"
+          value={usd(investments)}
+          hint="Only what you logged — never rewritten"
+        />
+        <Metric
+          kicker="Saved"
+          value={usd(savings)}
+          accent="#7ee7d6"
+          hint="Emergency, wedding, and other cash logs"
+        />
         <Metric
           kicker="Saved + invested"
           value={usd(savings + investments)}
           accent="#7ee7d6"
-          hint={`${usd(savings)} cash · ${usd(investments)} invested`}
-        />
-        <Metric
-          kicker="Surplus"
-          value={usd(surplus)}
-          accent={surplus >= 0 ? '#e4c37a' : '#c56b86'}
-          hint={surplus >= 0 ? 'Ready to assign or invest' : 'Over the line — trim something'}
+          hint="Running total from the activity log"
         />
       </div>
 
@@ -134,7 +146,7 @@ export function Dashboard({ persona }: { persona: Persona }) {
           <div className="flex items-center justify-between px-6 pt-5">
             <div>
               <p className="text-[11px] tracking-[0.2em] text-mute uppercase">3D split</p>
-              <h3 className="font-display text-2xl text-mist">Where the month goes</h3>
+              <h3 className="font-display text-2xl text-mist">What you have logged</h3>
             </div>
           </div>
           <div className="h-[300px]">
@@ -165,7 +177,7 @@ export function Dashboard({ persona }: { persona: Persona }) {
         <Panel>
           <p className="text-[11px] tracking-[0.2em] text-mute uppercase">Two incomes</p>
           <h3 className="mb-4 font-display text-2xl text-mist">Kaylie vs Nefi</h3>
-          <OwnerBars data={splitByOwner(state.entries)} />
+          <OwnerBars data={splitByOwnerActivity(activity)} />
         </Panel>
       </div>
 
@@ -173,7 +185,7 @@ export function Dashboard({ persona }: { persona: Persona }) {
         <Panel>
           <p className="text-[11px] tracking-[0.2em] text-mute uppercase">Categories</p>
           <h3 className="mb-4 font-display text-2xl text-mist">Outflow texture</h3>
-          <CategoryBars data={byCategory(entries).slice(0, 7)} />
+          <CategoryBars data={byCategoryActivity(activity).slice(0, 7)} />
         </Panel>
         <Panel>
           <p className="text-[11px] tracking-[0.2em] text-mute uppercase">On the horizon</p>
@@ -192,7 +204,7 @@ export function Dashboard({ persona }: { persona: Persona }) {
               ) : null}
               {wedding && nextEvent.id === wedding.id ? (
                 <p className="mt-2 text-sm text-mute">
-                  Wedding savings pace {usd(fund)}/mo
+                  Wedding savings logged {usd(fund)}
                   {wedding.estimatedCost > 0
                     ? ` · target ${usd(wedding.estimatedCost)}`
                     : ''}

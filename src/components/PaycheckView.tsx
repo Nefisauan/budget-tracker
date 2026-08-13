@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import type { Owner, Persona } from '../types.ts'
-import { visibleEntries } from '../lib/ledger.ts'
 import { sliceToActivity } from '../lib/activity.ts'
 import { recommendPaycheckSplit } from '../lib/paycheck.ts'
 import { isoDate, pct, uid, usd } from '../lib/money.ts'
@@ -9,27 +8,44 @@ import { SplitPie } from './Charts.tsx'
 import { Button, Chip, Field, fieldClass, Panel } from './ui.tsx'
 
 export function PaycheckView({ persona }: { persona: Persona }) {
-  const { state, addActivities, setView } = useLedger()
+  const { state, addActivity, setView } = useLedger()
   const defaultOwner: Owner = persona === 'together' ? 'kaylie' : persona
   const [amount, setAmount] = useState('')
+  const [date, setDate] = useState(isoDate())
   const [owner, setOwner] = useState<Owner>(defaultOwner)
   const [saved, setSaved] = useState(false)
+  const [loggedSlice, setLoggedSlice] = useState<string | null>(null)
   const check = Number(amount)
   const ready = Number.isFinite(check) && check > 0
-  const plan = ready ? recommendPaycheckSplit(check, owner, state, visibleEntries(state, 'together')) : null
+  const plan = ready ? recommendPaycheckSplit(check, owner, state) : null
+
+  function logPaycheck() {
+    if (!ready) return
+    addActivity({
+      id: uid(),
+      date,
+      owner,
+      kind: 'income',
+      category: 'Salary',
+      label: 'Paycheck',
+      amount: Math.round(check),
+      notes: '',
+    })
+    setSaved(true)
+  }
 
   return (
     <div className="space-y-5 pb-24 md:pb-4">
       <div>
         <p className="text-[11px] tracking-[0.28em] text-gold uppercase">This check</p>
-        <h2 className="mt-1 font-display text-4xl font-light text-mist">Got paid today?</h2>
+        <h2 className="mt-1 font-display text-4xl font-light text-mist">Got paid?</h2>
         <p className="mt-2 max-w-2xl text-sm text-mute">
-          Drop in what hit the account. Orbit splits it for needs, fun, the wedding, emergency cash, and investing — using your ages and what’s on the calendar.
+          Log what landed. That is the only number that gets added. Investments you already logged stay put — nothing is recalculated.
         </p>
       </div>
 
       <Panel>
-        <div className="grid gap-4 md:grid-cols-[1fr_1fr]">
+        <div className="grid gap-4 md:grid-cols-3">
           <Field label="How much landed">
             <input
               className={fieldClass()}
@@ -44,6 +60,9 @@ export function PaycheckView({ persona }: { persona: Persona }) {
               placeholder="2400"
             />
           </Field>
+          <Field label="When">
+            <input className={fieldClass()} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </Field>
           <Field label="Whose check">
             <div className="flex flex-wrap gap-2 pt-1">
               {(['kaylie', 'nefi', 'shared'] as Owner[]).map((o) => (
@@ -54,16 +73,22 @@ export function PaycheckView({ persona }: { persona: Persona }) {
             </div>
           </Field>
         </div>
-        <p className="mt-4 text-xs text-mute">Direct deposit, cash, Venmo from a gig — whatever. One number is enough.</p>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Button onClick={logPaycheck} className={!ready ? 'pointer-events-none opacity-40' : ''}>
+            {saved ? 'Paycheck logged' : 'Log this paycheck'}
+          </Button>
+          {saved ? (
+            <Button tone="ghost" onClick={() => setView('activity')}>
+              See the log →
+            </Button>
+          ) : null}
+        </div>
       </Panel>
 
-      {!ready ? (
-        <Panel>
-          <p className="text-sm text-mute">Enter the amount and the split appears here — dollars, percents, and why.</p>
-        </Panel>
-      ) : plan ? (
+      {plan ? (
         <>
           <Panel>
+            <p className="text-[11px] tracking-[0.2em] text-mute uppercase">Suggestion only</p>
             <h3 className="font-display text-2xl text-mist">{plan.headline}</h3>
             <p className="mt-2 text-sm text-mute">{plan.sub}</p>
             <div className="mt-6">
@@ -89,68 +114,37 @@ export function PaycheckView({ persona }: { persona: Persona }) {
                   </p>
                   <p className="mt-2 max-w-2xl text-sm text-mute">{s.why}</p>
                 </div>
-                <p className="font-display text-3xl text-gold">{usd(s.amount)}</p>
+                <div className="text-right">
+                  <p className="font-display text-3xl text-gold">{usd(s.amount)}</p>
+                  <Button
+                    tone="ghost"
+                    className="mt-2"
+                    onClick={() => {
+                      const row = sliceToActivity(date, owner, s.key, s.label, s.amount)
+                      if (!row) return
+                      addActivity({ id: uid(), ...row, notes: '' })
+                      setLoggedSlice(s.key)
+                    }}
+                  >
+                    {loggedSlice === s.key ? 'Logged' : 'Log this piece'}
+                  </Button>
+                </div>
               </article>
             ))}
           </div>
 
-          <Panel>
-            {plan.notes.length > 0 ? (
-              <>
-                <p className="text-[11px] tracking-[0.2em] text-mute uppercase">Why this split</p>
-                <ul className="mt-3 space-y-2 text-sm text-mute">
-                  {plan.notes.map((n) => (
-                    <li key={n}>· {n}</li>
-                  ))}
-                </ul>
-              </>
-            ) : null}
-            <div className="mt-5 flex flex-wrap gap-2">
-              <Button
-                onClick={() => {
-                  const date = isoDate()
-                  const checkAmt = Math.round(check)
-                  addActivities([
-                    {
-                      id: uid(),
-                      date,
-                      owner,
-                      kind: 'income',
-                      category: 'Salary',
-                      label: 'Paycheck',
-                      amount: checkAmt,
-                      notes: 'This check',
-                    },
-                    ...plan.slices.flatMap((s) => {
-                      const row = sliceToActivity(date, owner, s.key, s.label, s.amount)
-                      return row ? [{ id: uid(), ...row }] : []
-                    }),
-                  ])
-                  setSaved(true)
-                }}
-              >
-                {saved ? 'Saved to activity' : 'Save this split to history'}
-              </Button>
-              <Button tone="ghost" onClick={() => navigator.clipboard.writeText(copyPlan(plan.headline, plan.slices))}>
-                Copy the split
-              </Button>
-              {saved ? (
-                <Button tone="ghost" onClick={() => setView('activity')}>
-                  See the log →
-                </Button>
-              ) : null}
-            </div>
-          </Panel>
+          {plan.notes.length > 0 ? (
+            <Panel>
+              <p className="text-[11px] tracking-[0.2em] text-mute uppercase">Why this split</p>
+              <ul className="mt-3 space-y-2 text-sm text-mute">
+                {plan.notes.map((n) => (
+                  <li key={n}>· {n}</li>
+                ))}
+              </ul>
+            </Panel>
+          ) : null}
         </>
       ) : null}
     </div>
   )
-}
-
-function copyPlan(headline: string, slices: { label: string; amount: number; pct: number }[]): string {
-  const lines = [
-    headline,
-    ...slices.map((s) => `${s.label}: ${usd(s.amount)} (${pct(s.pct)})`),
-  ]
-  return lines.join('\n')
 }
