@@ -13,8 +13,8 @@ export const KIND_COPY: Record<FlowKind, { title: string; hint: string; verb: st
   income: { title: 'Income', hint: 'What you earn, and how often it lands', verb: 'Add income' },
   spend: { title: 'Needs & spending', hint: 'The life you already live', verb: 'Add spend' },
   fun: { title: 'Fun', hint: 'Joy is a line item', verb: 'Add fun' },
-  savings: { title: 'Savings', hint: 'Cash with a job to do', verb: 'Add savings' },
-  investments: { title: 'Investments', hint: 'Money that goes to work', verb: 'Add investment' },
+  savings: { title: 'Savings', hint: 'What you already have, plus what you keep adding', verb: 'Add savings' },
+  investments: { title: 'Investments', hint: 'What you already have, plus what you keep adding', verb: 'Add investment' },
 }
 
 export function emptyLedger(): LedgerState {
