@@ -4,6 +4,7 @@ import {
   CalendarHeart,
   Coins,
   Compass,
+  CreditCard,
   Download,
   History,
   Landmark,
@@ -25,12 +26,14 @@ import { AdviceView } from './AdviceView.tsx'
 import { PaycheckView } from './PaycheckView.tsx'
 import { ActivityView } from './ActivityView.tsx'
 import { HustleView } from './HustleView.tsx'
+import { LoanView } from './LoanView.tsx'
 
 const NAV: { id: View; label: string; icon: typeof Wallet }[] = [
   { id: 'dashboard', label: 'Observatory', icon: LayoutDashboard },
   { id: 'paycheck', label: 'This check', icon: Banknote },
   { id: 'activity', label: 'Activity', icon: History },
   { id: 'hustle', label: 'Hustle', icon: Briefcase },
+  { id: 'loans', label: 'Loans', icon: CreditCard },
   { id: 'income', label: 'Income', icon: Wallet },
   { id: 'spend', label: 'Needs', icon: Landmark },
   { id: 'fun', label: 'Fun', icon: Sparkles },
@@ -176,6 +179,7 @@ function ViewBody({ view, persona }: { view: View; persona: Persona }) {
   if (view === 'paycheck') return <PaycheckView persona={persona} />
   if (view === 'activity') return <ActivityView persona={persona} />
   if (view === 'hustle') return <HustleView persona={persona} />
+  if (view === 'loans') return <LoanView persona={persona} />
   if (view === 'income') return <FlowView persona={persona} kind="income" />
   if (view === 'spend') return <FlowView persona={persona} kind="spend" />
   if (view === 'fun') return <FlowView persona={persona} kind="fun" />

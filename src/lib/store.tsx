@@ -10,6 +10,8 @@ import type {
   Activity,
   Hustle,
   HustleLine,
+  Loan,
+  LoanLine,
   LedgerState,
   LifeEvent,
   MoneyEntry,
@@ -38,6 +40,8 @@ function readLedger(): LedgerState {
         : [],
       hustles: Array.isArray(parsed.hustles) ? parsed.hustles : [],
       hustleLines: Array.isArray(parsed.hustleLines) ? parsed.hustleLines : [],
+      loans: Array.isArray(parsed.loans) ? parsed.loans : [],
+      loanLines: Array.isArray(parsed.loanLines) ? parsed.loanLines : [],
       events: Array.isArray(parsed.events)
         ? parsed.events.map((e) =>
             e.kind === 'wedding' && e.estimatedCost === 25000 ? { ...e, estimatedCost: 20000 } : e,
@@ -79,6 +83,10 @@ interface Store {
   removeHustle: (id: string) => void
   addHustleLine: (line: HustleLine) => void
   removeHustleLine: (id: string) => void
+  upsertLoan: (loan: Loan) => void
+  removeLoan: (id: string) => void
+  addLoanLine: (line: LoanLine) => void
+  removeLoanLine: (id: string) => void
   loadDemo: () => void
   reset: () => void
   exportJson: () => string
@@ -169,6 +177,24 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
       addHustleLine: (line) => setState((s) => ({ ...s, hustleLines: [line, ...s.hustleLines] })),
       removeHustleLine: (id) =>
         setState((s) => ({ ...s, hustleLines: s.hustleLines.filter((l) => l.id !== id) })),
+      upsertLoan: (loan) =>
+        setState((s) => {
+          const loans = [...(s.loans ?? [])]
+          const i = loans.findIndex((l) => l.id === loan.id)
+          if (i >= 0) loans[i] = loan
+          else loans.unshift(loan)
+          return { ...s, loans }
+        }),
+      removeLoan: (id) =>
+        setState((s) => ({
+          ...s,
+          loans: (s.loans ?? []).filter((l) => l.id !== id),
+          loanLines: (s.loanLines ?? []).filter((l) => l.loanId !== id),
+        })),
+      addLoanLine: (line) =>
+        setState((s) => ({ ...s, loanLines: [line, ...(s.loanLines ?? [])] })),
+      removeLoanLine: (id) =>
+        setState((s) => ({ ...s, loanLines: (s.loanLines ?? []).filter((l) => l.id !== id) })),
       loadDemo: () => setState((s) => demoLedger(s)),
       reset: () => setState(emptyLedger()),
       exportJson: () => JSON.stringify(state, null, 2),
@@ -181,6 +207,8 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
           activity: (parsed.activity ?? []).filter((a) => a.notes !== 'From this-check split'),
           hustles: parsed.hustles ?? [],
           hustleLines: parsed.hustleLines ?? [],
+          loans: parsed.loans ?? [],
+          loanLines: parsed.loanLines ?? [],
           events: (parsed.events ?? []).map((e) =>
             e.kind === 'wedding' && e.estimatedCost === 25000 ? { ...e, estimatedCost: 20000 } : e,
           ),

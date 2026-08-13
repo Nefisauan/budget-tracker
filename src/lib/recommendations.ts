@@ -1,6 +1,7 @@
 import type { AdviceCard, LedgerState, MoneyEntry } from '../types.ts'
 import { monthsUntil, usd } from './money.ts'
 import { hustleTotals, visibleHustleLines } from './hustle.ts'
+import { debtSummary, linesForLoan, loanTotals, visibleLoans } from './loan.ts'
 import { riskPosture, sumKind, weddingSavings } from './ledger.ts'
 import { monthlyAmount } from './money.ts'
 
@@ -211,6 +212,31 @@ export function buildAdvice(state: LedgerState, entries: MoneyEntry[]): AdviceCa
       body: 'Treat profit like a paycheck: skim a tax set-aside (~25–30%), then send the rest to the wedding HYSA or a Roth — not a lifestyle upgrade.',
       why: 'Irregular income is easiest to spend because it feels like a bonus.',
       action: 'Move this month’s hustle profit into Savings or This check as if it were a deposit.',
+    })
+  }
+
+  const debt = debtSummary(state, 'together')
+  const costly = visibleLoans(state, 'together')
+    .map((loan) => ({ loan, tot: loanTotals(loan, linesForLoan(state, loan.id)) }))
+    .filter((x) => x.tot.remaining > 0 && x.loan.rate >= 7)
+    .sort((a, b) => b.loan.rate - a.loan.rate)[0]
+  if (costly) {
+    cards.push({
+      id: 'high-apr',
+      priority: 'now',
+      title: `${costly.loan.name} is at ${costly.loan.rate}% — pay this before extra investing`,
+      body: `${usd(costly.tot.remaining)} left. A guaranteed ${costly.loan.rate}% return is beating most index-fund years after tax. Log extra payments here; keep retirement contributions only if the match is free money.`,
+      why: 'High-interest debt is a negative investment that compounds against you.',
+      action: 'Open Loans and log any extra you can send this month.',
+    })
+  } else if (debt.remaining > 0) {
+    cards.push({
+      id: 'debt-floor',
+      priority: 'soon',
+      title: `${usd(debt.remaining)} still on the books`,
+      body: 'Make the minimum so nothing goes delinquent, then point leftover cash at the wedding fund and Roths unless a rate is ugly. Log every payment so the remaining number is honest.',
+      why: 'Debt only shrinks when you record what you actually paid.',
+      action: 'After each payment, log it on Loans — the balance will not guess.',
     })
   }
 

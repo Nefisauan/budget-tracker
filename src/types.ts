@@ -4,7 +4,8 @@ export type FlowKind = 'income' | 'spend' | 'fun' | 'savings' | 'investments'
 export type Cadence = 'weekly' | 'biweekly' | 'semimonthly' | 'monthly' | 'yearly'
 export type EventKind = 'wedding' | 'travel' | 'home' | 'career' | 'family' | 'celebration' | 'other'
 export type HustleLineKind = 'revenue' | 'cost'
-export type View = 'dashboard' | 'paycheck' | 'activity' | 'hustle' | 'income' | 'spend' | 'fun' | 'savings' | 'investments' | 'events' | 'advice'
+export type LoanLineKind = 'payment' | 'charge'
+export type View = 'dashboard' | 'paycheck' | 'activity' | 'hustle' | 'loans' | 'income' | 'spend' | 'fun' | 'savings' | 'investments' | 'events' | 'advice'
 
 export interface ProfileMeta {
   name: string
@@ -53,6 +54,28 @@ export interface HustleLine {
   notes: string
 }
 
+export interface Loan {
+  id: string
+  name: string
+  owner: Owner
+  category: string
+  startBalance: number
+  rate: number
+  minPayment: number
+  startDate: string
+  notes: string
+}
+
+export interface LoanLine {
+  id: string
+  loanId: string
+  kind: LoanLineKind
+  amount: number
+  date: string
+  label: string
+  notes: string
+}
+
 export interface LifeEvent {
   id: string
   title: string
@@ -71,6 +94,8 @@ export interface LedgerState {
   activity: Activity[]
   hustles: Hustle[]
   hustleLines: HustleLine[]
+  loans: Loan[]
+  loanLines: LoanLine[]
   events: LifeEvent[]
 }
 

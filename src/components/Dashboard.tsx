@@ -11,6 +11,7 @@ import {
   weekChart,
 } from '../lib/activity.ts'
 import { hustleTotals, visibleHustleLines } from '../lib/hustle.ts'
+import { debtSummary } from '../lib/loan.ts'
 import { visibleEntries } from '../lib/ledger.ts'
 import { buildAdvice } from '../lib/recommendations.ts'
 import { monthsUntil, prettyDate, usd } from '../lib/money.ts'
@@ -46,6 +47,7 @@ export function Dashboard({ persona }: { persona: Persona }) {
   const savedAll = savings
   const recentWeek = groupWeeks(activity)[0]
   const hustle = hustleTotals(visibleHustleLines(state, persona))
+  const debt = debtSummary(state, persona)
 
   const greeting =
     persona === 'together'
@@ -118,6 +120,21 @@ export function Dashboard({ persona }: { persona: Persona }) {
           </div>
           <button type="button" onClick={() => setView('hustle')} className="text-sm text-gold">
             Log costs & sales →
+          </button>
+        </div>
+      </Panel>
+
+      <Panel>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-[11px] tracking-[0.2em] text-mute uppercase">Loans</p>
+            <h3 className="font-display text-2xl text-mist">{usd(debt.remaining)} still owed</h3>
+            <p className="mt-1 text-sm text-mute">
+              Paid {usd(debt.paid)} · {usd(debt.paidThisMonth)} this month
+            </p>
+          </div>
+          <button type="button" onClick={() => setView('loans')} className="text-sm text-gold">
+            Log a payment →
           </button>
         </div>
       </Panel>
