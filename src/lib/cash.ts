@@ -7,17 +7,20 @@ export interface CashEvent {
   label: string
 }
 
-function onOrAfter(date: string, start: string): boolean {
-  return date >= start
+/** Snapshot already includes money through startDate. Only newer logs move the balance. */
+function appliesToSnapshot(logDate: string, logCreatedAt: string | undefined, account: CashAccount): boolean {
+  if (logDate > account.startDate) return true
+  if (logDate < account.startDate) return false
+  const started = account.createdAt
+  return Boolean(started && logCreatedAt && logCreatedAt > started)
 }
 
 export function cashEventsFor(state: LedgerState, account: CashAccount): CashEvent[] {
   const owner = account.owner
-  const start = account.startDate
   const events: CashEvent[] = []
 
   for (const a of state.activity ?? []) {
-    if (a.owner !== owner || !onOrAfter(a.date, start)) continue
+    if (a.owner !== owner || !appliesToSnapshot(a.date, a.createdAt, account)) continue
     if (a.kind === 'income') events.push({ date: a.date, amount: a.amount, label: a.label || 'Paycheck' })
     else if (a.kind === 'spend' || a.kind === 'fun') events.push({ date: a.date, amount: -a.amount, label: a.label })
     else if ((a.kind === 'savings' || a.kind === 'investments') && a.notes !== 'Starting balance') {
@@ -28,7 +31,7 @@ export function cashEventsFor(state: LedgerState, account: CashAccount): CashEve
   for (const h of state.hustles ?? []) {
     if (h.owner !== owner) continue
     for (const l of state.hustleLines ?? []) {
-      if (l.hustleId !== h.id || !onOrAfter(l.date, start)) continue
+      if (l.hustleId !== h.id || !appliesToSnapshot(l.date, l.createdAt, account)) continue
       events.push({
         date: l.date,
         amount: l.kind === 'revenue' ? l.amount : -l.amount,
@@ -40,7 +43,7 @@ export function cashEventsFor(state: LedgerState, account: CashAccount): CashEve
   for (const loan of state.loans ?? []) {
     if (loan.owner !== owner) continue
     for (const l of state.loanLines ?? []) {
-      if (l.loanId !== loan.id || l.kind !== 'payment' || !onOrAfter(l.date, start)) continue
+      if (l.loanId !== loan.id || l.kind !== 'payment' || !appliesToSnapshot(l.date, l.createdAt, account)) continue
       events.push({ date: l.date, amount: -l.amount, label: `${loan.name} · ${l.label}` })
     }
   }
@@ -48,13 +51,13 @@ export function cashEventsFor(state: LedgerState, account: CashAccount): CashEve
   for (const card of state.cards ?? []) {
     if (card.owner !== owner) continue
     for (const l of state.cardLines ?? []) {
-      if (l.cardId !== card.id || l.kind !== 'payment' || !onOrAfter(l.date, start)) continue
+      if (l.cardId !== card.id || l.kind !== 'payment' || !appliesToSnapshot(l.date, l.createdAt, account)) continue
       events.push({ date: l.date, amount: -l.amount, label: `${card.name} · ${l.label}` })
     }
   }
 
   for (const adj of state.cashAdjusts ?? []) {
-    if (adj.accountId !== account.id || !onOrAfter(adj.date, start)) continue
+    if (adj.accountId !== account.id || !appliesToSnapshot(adj.date, adj.createdAt, account)) continue
     events.push({ date: adj.date, amount: adj.amount, label: adj.label })
   }
 
@@ -62,7 +65,8 @@ export function cashEventsFor(state: LedgerState, account: CashAccount): CashEve
 }
 
 export function liveBalance(state: LedgerState, account: CashAccount): number {
-  return account.startBalance + cashEventsFor(state, account).reduce((n, e) => n + e.amount, 0)
+  const n = account.startBalance + cashEventsFor(state, account).reduce((sum, e) => sum + e.amount, 0)
+  return Math.round(n * 100) / 100
 }
 
 export function visibleCash(state: LedgerState, persona: Persona): CashAccount[] {
@@ -71,10 +75,17 @@ export function visibleCash(state: LedgerState, persona: Persona): CashAccount[]
 }
 
 export function cashOnHand(state: LedgerState, persona: Persona): number {
-  return visibleCash(state, persona).reduce((n, a) => n + liveBalance(state, a), 0)
+  const n = visibleCash(state, persona).reduce((sum, a) => sum + liveBalance(state, a), 0)
+  return Math.round(n * 100) / 100
 }
 
 export function ownerName(owner: Owner, state: LedgerState): string {
   if (owner === 'shared') return 'Shared'
   return state.profiles[owner].name
+}
+
+/** Drop v1 accounts that stacked paychecks already sitting in the snapshot. */
+export function migrateCashAccounts(accounts: CashAccount[] | undefined): CashAccount[] {
+  if (!Array.isArray(accounts)) return []
+  return accounts.filter((a) => Boolean(a.createdAt))
 }

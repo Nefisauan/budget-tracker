@@ -34,6 +34,7 @@ export interface Activity {
   label: string
   amount: number
   notes: string
+  createdAt?: string
 }
 
 export interface Hustle {
@@ -52,6 +53,7 @@ export interface HustleLine {
   amount: number
   date: string
   notes: string
+  createdAt?: string
 }
 
 export interface Loan {
@@ -74,6 +76,7 @@ export interface LoanLine {
   date: string
   label: string
   notes: string
+  createdAt?: string
 }
 
 export interface CardAccount {
@@ -97,6 +100,7 @@ export interface CardLine {
   date: string
   label: string
   notes: string
+  createdAt?: string
 }
 
 export interface CashAccount {
@@ -106,6 +110,7 @@ export interface CashAccount {
   startBalance: number
   startDate: string
   notes: string
+  createdAt: string
 }
 
 export interface CashAdjust {
@@ -114,6 +119,7 @@ export interface CashAdjust {
   amount: number
   date: string
   label: string
+  createdAt?: string
 }
 
 export interface LifeEvent {

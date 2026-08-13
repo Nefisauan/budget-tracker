@@ -95,12 +95,12 @@ export function Dashboard({ persona }: { persona: Persona }) {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-[11px] tracking-[0.2em] text-mute uppercase">In the bank right now</p>
-            <h3 className={`font-display text-4xl ${bank < 0 ? 'text-rose' : 'text-teal'}`}>{usd(bank)}</h3>
+            <h3 className={`font-display text-4xl ${bank < 0 ? 'text-rose' : 'text-teal'}`}>{usd(bank, 2)}</h3>
             <p className="mt-1 text-sm text-mute">
               {cashAccounts.length === 0
-                ? 'Set what’s in checking — then it moves every time you log pay, spend, or a payment.'
+                ? 'Set what’s in checking today. Pay already in the bank is not added again.'
                 : cashAccounts
-                    .map((a) => `${a.name} ${usd(liveBalance(state, a))}`)
+                    .map((a) => `${a.name} ${usd(liveBalance(state, a), 2)}`)
                     .join(' · ')}
             </p>
           </div>

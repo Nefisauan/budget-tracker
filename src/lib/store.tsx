@@ -23,7 +23,12 @@ import type {
   Session,
   View,
 } from '../types.ts'
+import { migrateCashAccounts } from './cash.ts'
 import { demoLedger, emptyLedger } from './ledger.ts'
+
+function stamp<T extends { createdAt?: string }>(row: T): T {
+  return { ...row, createdAt: row.createdAt ?? new Date().toISOString() }
+}
 
 const LEDGER_KEY = 'orbit-ledger-v2'
 const SESSION_KEY = 'orbit-session-v2'
@@ -48,8 +53,8 @@ function readLedger(): LedgerState {
       loanLines: Array.isArray(parsed.loanLines) ? parsed.loanLines : [],
       cards: Array.isArray(parsed.cards) ? parsed.cards : [],
       cardLines: Array.isArray(parsed.cardLines) ? parsed.cardLines : [],
-      cashAccounts: Array.isArray(parsed.cashAccounts) ? parsed.cashAccounts : [],
-      cashAdjusts: Array.isArray(parsed.cashAdjusts) ? parsed.cashAdjusts : [],
+      cashAccounts: migrateCashAccounts(parsed.cashAccounts),
+      cashAdjusts: migrateCashAccounts(parsed.cashAccounts).length ? parsed.cashAdjusts ?? [] : [],
       events: Array.isArray(parsed.events)
         ? parsed.events.map((e) =>
             e.kind === 'wedding' && e.estimatedCost === 25000 ? { ...e, estimatedCost: 20000 } : e,
@@ -103,6 +108,7 @@ interface Store {
   removeCash: (id: string) => void
   addCashAdjust: (row: CashAdjust) => void
   removeCashAdjust: (id: string) => void
+  resetCash: () => void
   loadDemo: () => void
   reset: () => void
   exportJson: () => string
@@ -171,9 +177,9 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
         }),
       removeEvent: (id) =>
         setState((s) => ({ ...s, events: s.events.filter((e) => e.id !== id) })),
-      addActivity: (row) => setState((s) => ({ ...s, activity: [row, ...s.activity] })),
+      addActivity: (row) => setState((s) => ({ ...s, activity: [stamp(row), ...s.activity] })),
       addActivities: (rows) =>
-        setState((s) => ({ ...s, activity: [...rows, ...s.activity] })),
+        setState((s) => ({ ...s, activity: [...rows.map(stamp), ...s.activity] })),
       removeActivity: (id) =>
         setState((s) => ({ ...s, activity: s.activity.filter((a) => a.id !== id) })),
       upsertHustle: (hustle) =>
@@ -190,7 +196,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
           hustles: s.hustles.filter((h) => h.id !== id),
           hustleLines: s.hustleLines.filter((l) => l.hustleId !== id),
         })),
-      addHustleLine: (line) => setState((s) => ({ ...s, hustleLines: [line, ...s.hustleLines] })),
+      addHustleLine: (line) => setState((s) => ({ ...s, hustleLines: [stamp(line), ...s.hustleLines] })),
       removeHustleLine: (id) =>
         setState((s) => ({ ...s, hustleLines: s.hustleLines.filter((l) => l.id !== id) })),
       upsertLoan: (loan) =>
@@ -208,7 +214,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
           loanLines: (s.loanLines ?? []).filter((l) => l.loanId !== id),
         })),
       addLoanLine: (line) =>
-        setState((s) => ({ ...s, loanLines: [line, ...(s.loanLines ?? [])] })),
+        setState((s) => ({ ...s, loanLines: [stamp(line), ...(s.loanLines ?? [])] })),
       removeLoanLine: (id) =>
         setState((s) => ({ ...s, loanLines: (s.loanLines ?? []).filter((l) => l.id !== id) })),
       upsertCard: (card) =>
@@ -226,7 +232,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
           cardLines: (s.cardLines ?? []).filter((l) => l.cardId !== id),
         })),
       addCardLine: (line) =>
-        setState((s) => ({ ...s, cardLines: [line, ...(s.cardLines ?? [])] })),
+        setState((s) => ({ ...s, cardLines: [stamp(line), ...(s.cardLines ?? [])] })),
       removeCardLine: (id) =>
         setState((s) => ({ ...s, cardLines: (s.cardLines ?? []).filter((l) => l.id !== id) })),
       upsertCash: (account) =>
@@ -244,9 +250,10 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
           cashAdjusts: (s.cashAdjusts ?? []).filter((a) => a.accountId !== id),
         })),
       addCashAdjust: (row) =>
-        setState((s) => ({ ...s, cashAdjusts: [row, ...(s.cashAdjusts ?? [])] })),
+        setState((s) => ({ ...s, cashAdjusts: [stamp(row), ...(s.cashAdjusts ?? [])] })),
       removeCashAdjust: (id) =>
         setState((s) => ({ ...s, cashAdjusts: (s.cashAdjusts ?? []).filter((a) => a.id !== id) })),
+      resetCash: () => setState((s) => ({ ...s, cashAccounts: [], cashAdjusts: [] })),
       loadDemo: () => setState((s) => demoLedger(s)),
       reset: () => setState(emptyLedger()),
       exportJson: () => JSON.stringify(state, null, 2),
@@ -263,8 +270,8 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
           loanLines: parsed.loanLines ?? [],
           cards: parsed.cards ?? [],
           cardLines: parsed.cardLines ?? [],
-          cashAccounts: parsed.cashAccounts ?? [],
-          cashAdjusts: parsed.cashAdjusts ?? [],
+          cashAccounts: migrateCashAccounts(parsed.cashAccounts),
+          cashAdjusts: migrateCashAccounts(parsed.cashAccounts).length ? parsed.cashAdjusts ?? [] : [],
           events: (parsed.events ?? []).map((e) =>
             e.kind === 'wedding' && e.estimatedCost === 25000 ? { ...e, estimatedCost: 20000 } : e,
           ),

@@ -7,7 +7,7 @@ import { useLedger } from '../lib/store.tsx'
 import { Button, Chip, Field, fieldClass, Panel } from './ui.tsx'
 
 export function CashView({ persona }: { persona: Persona }) {
-  const { state, upsertCash, removeCash, addCashAdjust, removeCashAdjust } = useLedger()
+  const { state, upsertCash, removeCash, addCashAdjust, removeCashAdjust, resetCash } = useLedger()
   const accounts = visibleCash(state, persona)
   const total = cashOnHand(state, persona)
   const [activeId, setActiveId] = useState<string | null>(accounts[0]?.id ?? null)
@@ -23,18 +23,30 @@ export function CashView({ persona }: { persona: Persona }) {
         <p className="text-[11px] tracking-[0.28em] text-gold uppercase">In the bank</p>
         <h2 className="mt-1 font-display text-4xl font-light text-mist">What you have right now</h2>
         <p className="mt-2 max-w-2xl text-sm text-mute">
-          Set what’s in checking today. After that, the number only moves when you log something — paychecks in, spend and fun out, new savings and investments out, hustle sales in, hustle costs and loan or card payments out. Starting savings and investments stay where they are.
+          Type what the bank app shows right now — including pay that’s already there. That paycheck will not be added again. After this snapshot, only new logs move the number.
         </p>
       </div>
 
       <Panel>
         <p className="text-[11px] tracking-[0.2em] text-mute uppercase">In accounts right now</p>
-        <p className={`mt-2 font-display text-5xl ${total < 0 ? 'text-rose' : 'text-teal'}`}>{usd(total)}</p>
+        <p className={`mt-2 font-display text-5xl ${total < 0 ? 'text-rose' : 'text-teal'}`}>{usd(total, 2)}</p>
         <p className="mt-2 text-sm text-mute">
           {accounts.length === 0
             ? 'Add a checking or cash account to start the running total.'
-            : `${accounts.length} account${accounts.length === 1 ? '' : 's'} · updates on every log`}
+            : `${accounts.length} account${accounts.length === 1 ? '' : 's'} · updates on every new log`}
         </p>
+        {accounts.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => {
+              resetCash()
+              setActiveId(null)
+            }}
+            className="mt-4 text-sm text-rose"
+          >
+            Reset in the bank
+          </button>
+        ) : null}
       </Panel>
 
       <Panel>
@@ -68,8 +80,8 @@ export function CashView({ persona }: { persona: Persona }) {
               >
                 <p className="text-xs text-mute">{ownerName(account.owner, state)}</p>
                 <h3 className="mt-1 font-display text-xl text-mist">{account.name}</h3>
-                <p className={`mt-2 font-display text-2xl ${bal < 0 ? 'text-rose' : 'text-teal'}`}>{usd(bal)}</p>
-                <p className="mt-1 text-xs text-mute">Started at {usd(account.startBalance)} on {prettyDate(account.startDate)}</p>
+                <p className={`mt-2 font-display text-2xl ${bal < 0 ? 'text-rose' : 'text-teal'}`}>{usd(bal, 2)}</p>
+                <p className="mt-1 text-xs text-mute">Started at {usd(account.startBalance, 2)} on {prettyDate(account.startDate)}</p>
               </button>
             )
           })}
@@ -82,7 +94,7 @@ export function CashView({ persona }: { persona: Persona }) {
             <div>
               <p className="text-[11px] tracking-[0.2em] text-mute uppercase">Running balance</p>
               <h3 className="font-display text-3xl text-mist">{active.name}</h3>
-              <p className={`mt-2 font-display text-4xl ${live < 0 ? 'text-rose' : 'text-teal'}`}>{usd(live)}</p>
+              <p className={`mt-2 font-display text-4xl ${live < 0 ? 'text-rose' : 'text-teal'}`}>{usd(live, 2)}</p>
             </div>
             <button
               type="button"
@@ -121,7 +133,7 @@ export function CashView({ persona }: { persona: Persona }) {
                     <div className="flex items-center gap-3">
                       <p className={`text-sm ${ev.amount >= 0 ? 'text-teal' : 'text-rose'}`}>
                         {ev.amount >= 0 ? '+' : '−'}
-                        {usd(Math.abs(ev.amount))}
+                        {usd(Math.abs(ev.amount), 2)}
                       </p>
                       {adj ? (
                         <button type="button" onClick={() => removeCashAdjust(adj.id)} className="text-rose" aria-label="Remove correction">
@@ -134,7 +146,7 @@ export function CashView({ persona }: { persona: Persona }) {
               })}
               <li className="flex items-center justify-between py-3 text-sm text-mute">
                 <span>Starting balance · {prettyDate(active.startDate)}</span>
-                <span>{usd(active.startBalance)}</span>
+                <span>{usd(active.startBalance, 2)}</span>
               </li>
             </ul>
           )}
@@ -153,7 +165,7 @@ function NewCashForm({
 }) {
   const [name, setName] = useState('Checking')
   const [owner, setOwner] = useState<Owner>(defaultOwner)
-  const [startBalance, setStartBalance] = useState('')
+  const [startBalance, setStartBalance] = useState('613.42')
   const [startDate, setStartDate] = useState(isoDate())
 
   function submit(e: FormEvent) {
@@ -164,9 +176,10 @@ function NewCashForm({
       id: uid(),
       name: name.trim(),
       owner,
-      startBalance: bal,
+      startBalance: Math.round(bal * 100) / 100,
       startDate,
       notes: '',
+      createdAt: new Date().toISOString(),
     })
     setStartBalance('')
   }
@@ -177,7 +190,7 @@ function NewCashForm({
         <input className={fieldClass()} value={name} onChange={(e) => setName(e.target.value)} placeholder="Checking, joint, cash…" required />
       </Field>
       <Field label="In the account right now">
-        <input className={fieldClass()} type="number" step="1" value={startBalance} onChange={(e) => setStartBalance(e.target.value)} required />
+        <input className={fieldClass()} type="number" step="0.01" value={startBalance} onChange={(e) => setStartBalance(e.target.value)} placeholder="613.42" required />
       </Field>
       <Field label="As of">
         <input className={fieldClass()} type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
@@ -238,7 +251,7 @@ function AdjustForm({
         </div>
       </Field>
       <Field label="Amount">
-        <input className={fieldClass()} type="number" min="1" step="1" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+        <input className={fieldClass()} type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required />
       </Field>
       <Field label="When">
         <input className={fieldClass()} type="date" value={date} onChange={(e) => setDate(e.target.value)} required />

@@ -43,7 +43,7 @@ export function buildAdvice(state: LedgerState, entries: MoneyEntry[]): AdviceCa
       id: 'cash-start',
       priority: 'now',
       title: 'Say how much is in the bank right now',
-      body: 'Add checking (or cash) with the balance you see today. After that, every paycheck, spend, hustle line, and loan or card payment moves that number — nothing else rewrites it.',
+      body: 'Add checking with the balance you see in the bank app today, including pay that’s already there. That paycheck will not be stacked on top. After the snapshot, only new logs move the number.',
       why: 'A live account total is only honest if it starts from what is actually there.',
       action: 'Open In the bank and set the starting balance.',
     })
